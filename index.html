@@ -81,7 +81,8 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
 .status{color:var(--ink-2);font-size:14px;line-height:1.6;padding:16px;border-radius:16px;background:var(--surface);display:flex;flex-direction:column;gap:10px;align-items:flex-start}
 .status .btn{flex:none;padding:9px 16px;font-size:14px}
 a.body{color:inherit;text-decoration:none}
-.ev .ext{flex:none;font-size:11px;color:var(--ink-2);background:var(--surface-2);border-radius:8px;padding:4px 8px;white-space:nowrap}
+.ev .ext{flex:none;max-width:38%;overflow:hidden;text-overflow:ellipsis;font-size:11px;color:var(--ink-2);background:var(--surface-2);border-radius:8px;padding:3px 8px;white-space:nowrap}
+.ev .ext::before{content:"✉ ";opacity:.6}
 .formerr{color:#c0566d;font-size:13px;line-height:1.5;margin:0 0 10px}
 .cal{background:var(--surface);border-radius:var(--r);padding:8px 6px 6px;box-shadow:var(--shadow);touch-action:pan-y}
 .wk,.grid{display:grid;grid-template-columns:repeat(7,1fr)}
@@ -617,7 +618,7 @@ function renderAgenda(){
     else if (readOnly) body.onclick = () => toast("這是別人建立的活動，請到 Google 日曆查看");
     else body.onclick = () => openEvent(e);
     row.append(tag, body);
-    if (readOnly && !other) { const x = document.createElement("span"); x.className = "ext"; x.textContent = "別人建立"; row.appendChild(x); }
+    if (readOnly) { const x = document.createElement("span"); x.className = "ext"; x.textContent = e.from || "別人建立"; x.title = e.from ? `由 ${e.from} 發送` : ""; row.appendChild(x); }
     else if (!e.work) {
       const c = document.createElement("button"); c.className = "check"; c.setAttribute("aria-label", e.done ? "標為未完成" : "標為完成");
       c.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg>';
@@ -762,6 +763,14 @@ function setTab(t, quiet){
   if (!quiet) say(t === "work" ? rand(["工作模式！今天也要準時下班喵", "上班囉，我幫你盯著 Google 日曆", "工作的事交給你，罐罐交給我"]) : rand(["回到私人時間～", "這裡是我們的秘密行程", "下班了嗎？來摸我"]), "bounce");
 }
 $("tabs").addEventListener("click", e => { const b = e.target.closest("button[data-tab]"); if (b && b.dataset.tab !== S.tab) setTab(b.dataset.tab); });
+// who sent it: the organizer's mailbox name; for shared calendars, the calendar's name or the person who created it
+function senderOf(g){
+  const o = g.organizer || {}, c = g.creator || {};
+  const local = em => String(em || "").split("@")[0];
+  if (o.email && !/calendar\.google\.com$/.test(o.email)) return local(o.email);
+  if (o.displayName) return String(o.displayName).replace(/^Transferred from\s+/i, "").split("@")[0];
+  return local(c.email);
+}
 function normG(g){
   if (!g || g.status === "cancelled") return null;
   const allDay = !!(g.start && g.start.date);
@@ -778,7 +787,8 @@ function normG(g){
   return {
     id: g.id, work: true, mine: !!mine, related,
     org: String((g.organizer && g.organizer.email) || "").split("@")[0].toLowerCase(),
-    creatorOrg: String((g.creator && g.creator.email) || "").split("@")[0].toLowerCase(), title: g.summary || "（無標題）", date: sd, days, allDay,
+    creatorOrg: String((g.creator && g.creator.email) || "").split("@")[0].toLowerCase(),
+    from: senderOf(g), title: g.summary || "（無標題）", date: sd, days, allDay,
     time: allDay ? "" : String(g.start.dateTime).slice(11, 16),
     endTime: allDay ? "" : String((g.end && g.end.dateTime) || "").slice(11, 16),
     note: String(g.description || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 120),
