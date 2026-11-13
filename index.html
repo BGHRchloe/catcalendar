@@ -354,6 +354,11 @@ textarea.inp{min-height:64px;resize:vertical}
     <div class="stat"><b id="stDone">0</b><span>你完成的事</span></div>
   </div>
   <p class="hint" id="storeHint"></p>
+  <div class="field" id="vipField" hidden>
+    <label for="vipInput">工作月曆上要顯示誰發的邀請</label>
+    <input class="inp" id="vipInput" autocomplete="off" placeholder="例如：steve, johnny, jennifer">
+    <span class="hint" style="margin:0">填公司信箱 @ 前面的名字，用逗號分開。你自己建立的行程一定會顯示；其他人的只會出現在當天明細的「同事動態」。</span>
+  </div>
   <div class="actions"><button type="button" class="btn ghost" id="paradeBtn">全員集合！</button><button type="button" class="btn primary" id="setDone">好了</button></div>
 </div>
 
@@ -533,12 +538,15 @@ async function connect(){
 /* ---------- calendar render ---------- */
 function eventsOn(day){
   const src = S.tab === "work" ? S.work : S.events;
-  return [...src.values()].filter(e => (e.date === day || (e.days && e.days.includes(day))) && (S.tab !== "work" || e.related))
+  return [...src.values()].filter(e => (e.date === day || (e.days && e.days.includes(day))) && (S.tab !== "work" || isTop(e)))
     .sort((a,b) => (a.time||"").localeCompare(b.time||"") || (a.created||0)-(b.created||0));
 }
+const DEFAULT_VIPS = ["steve", "johnny", "jennifer"];
+const vipList = () => Array.isArray(S.settings.vips) ? S.settings.vips : DEFAULT_VIPS;
+function isTop(e){ const v = vipList(); return e.mine || (e.org && v.includes(e.org)) || (e.creatorOrg && v.includes(e.creatorOrg)); }
 function othersOn(day){
   if (S.tab !== "work") return [];
-  return [...S.work.values()].filter(e => !e.related && (e.date === day || (e.days && e.days.includes(day))))
+  return [...S.work.values()].filter(e => !isTop(e) && (e.date === day || (e.days && e.days.includes(day))))
     .sort((a, b) => (a.time || "").localeCompare(b.time || ""));
 }
 function render(dir){
@@ -768,7 +776,9 @@ function normG(g){
   // "related": I made it, it has no guest list, or I said yes/maybe. Colleagues' leave notices and unanswered invites are not.
   const related = !!mine || !g.attendees || !!(me && (me.responseStatus === "accepted" || me.responseStatus === "tentative"));
   return {
-    id: g.id, work: true, mine: !!mine, related, title: g.summary || "（無標題）", date: sd, days, allDay,
+    id: g.id, work: true, mine: !!mine, related,
+    org: String((g.organizer && g.organizer.email) || "").split("@")[0].toLowerCase(),
+    creatorOrg: String((g.creator && g.creator.email) || "").split("@")[0].toLowerCase(), title: g.summary || "（無標題）", date: sd, days, allDay,
     time: allDay ? "" : String(g.start.dateTime).slice(11, 16),
     endTime: allDay ? "" : String((g.end && g.end.dateTime) || "").slice(11, 16),
     note: String(g.description || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 120),
@@ -1067,7 +1077,15 @@ setInterval(() => {
 }, 5000);
 
 /* ---------- cat roster ---------- */
-$("setBtn").onclick = () => { renderRoster(); openSheet("setSheet"); };
+$("setBtn").onclick = () => {
+  renderRoster();
+  $("vipField").hidden = !MCP; $("vipInput").value = vipList().join(", ");
+  openSheet("setSheet");
+};
+$("vipInput").addEventListener("change", e => {
+  S.settings.vips = e.target.value.split(/[\s,，、;；]+/).map(x => x.trim().toLowerCase().replace(/@.*$/, "")).filter(Boolean);
+  Store.saveSettings(); render(); toast("已更新工作月曆顯示名單");
+});
 $("setDone").onclick = () => { closeSheets(); say(`${catName()}準備好了喵！`, "bounce", true); };
 $("autoBtn").onclick = () => {
   S.settings.auto = !S.settings.auto;
