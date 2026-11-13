@@ -1,0 +1,865 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f8f5f8">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="apple-touch-icon.png">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>喵喵行事曆</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Huninn&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+/* Layout: one-screen phone app — month grid on top, day agenda below, cat companion floating bottom-left, add button bottom-right */
+:root{
+  --bg:#f8f5f8;          /* blush-tinted paper */
+  --surface:#ffffff;
+  --surface-2:#f1ecf2;
+  --ink:#4a4250;         /* soft plum ink */
+  --ink-2:#8c8294;
+  --ink-3:#bdb4c2;
+  --accent:#e9a8b8;      /* sakura pink */
+  --accent-ink:#7a3d50;
+  --accent-soft:#fbe6ec;
+  --line:#ebe4ec;
+  --shadow:0 6px 24px rgba(122,61,80,.10);
+  --c-pink:#f4c4cf; --c-peach:#f8d5b8; --c-butter:#f6e6a8; --c-mint:#bfe3cf; --c-sky:#bcd8ef; --c-lav:#d6c8ef;
+  --chip-ink:#3f3745;    /* dark text on pastel chips, both themes */
+  --font-display:"Huninn","Zen Maru Gothic","PingFang TC","Noto Sans TC",system-ui,sans-serif;
+  --font-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --r:18px;
+}
+/* Deliberately one light pastel look in every theme: the user asked for soft, pale colours. */
+:root,:root[data-theme="dark"]{color-scheme:light}
+
+*,*::before,*::after{box-sizing:border-box}
+html,body{min-height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;overflow-x:hidden;-webkit-tap-highlight-color:transparent}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.app{position:relative;max-width:480px;margin:0 auto;display:flex;flex-direction:column;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:10px 0}
+
+/* header */
+.top{display:flex;align-items:center;gap:8px;padding-block:4px 10px}
+.month{flex:1;min-width:0;display:flex;flex-direction:column;gap:0}
+.month h1{margin:0;font-family:var(--font-display);font-weight:400;font-size:28px;line-height:1.15;letter-spacing:.02em;white-space:nowrap}
+.month small{color:var(--ink-2);font-size:11px;letter-spacing:.06em;white-space:nowrap}
+.icon-btn{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:var(--ink-2)}
+.icon-btn:active{background:var(--surface-2)}
+.icon-btn svg{width:20px;height:20px}
+.today-btn{padding:6px 12px;border-radius:999px;background:var(--accent-soft);color:var(--accent-ink);font-size:13px;font-weight:500}
+
+/* grid */
+.cal{background:var(--surface);border-radius:var(--r);padding:8px 6px 6px;box-shadow:var(--shadow);touch-action:pan-y}
+.wk,.grid{display:grid;grid-template-columns:repeat(7,1fr)}
+.wk span{text-align:center;font-size:11px;color:var(--ink-2);padding-bottom:6px;letter-spacing:.08em}
+.wk span:first-child,.wk span:last-child{color:var(--accent)}
+.grid{border-top:1px solid var(--line)}
+.day{position:relative;min-width:0;min-height:52px;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;padding:4px 1px 3px;gap:2px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+.grid .day:nth-last-child(-n+7){border-bottom:0}
+.day .n{width:24px;height:24px;align-self:center;display:grid;place-items:center;border-radius:50%;font-size:13.5px;transition:background .2s}
+.chips{display:flex;flex-direction:column;gap:2px;min-width:0}
+.chip{display:block;min-width:0;font-size:9.5px;line-height:14px;padding:0 3px;border-radius:4px;color:var(--chip-ink);white-space:nowrap;overflow:hidden;text-overflow:clip;text-align:left;letter-spacing:-.01em}
+.chip.done{opacity:.45;text-decoration:line-through}
+.day.other .chip{opacity:.5}
+.more{font-size:9px;line-height:11px;color:var(--ink-2);text-align:center}
+.day.other .n{color:var(--ink-3)}
+.day.wkend:not(.other) .n{color:#d58a9c}
+.day.today .n{box-shadow:inset 0 0 0 1.5px var(--accent);color:var(--accent-ink)}
+.day.sel .n{background:var(--accent);color:#fff;box-shadow:none}
+.dots{display:flex;gap:3px;height:6px}
+.dots i{width:6px;height:6px;border-radius:50%}
+.grid.slide-l{animation:slideL .28s ease}
+.grid.slide-r{animation:slideR .28s ease}
+@keyframes slideL{from{transform:translateX(24px);opacity:.3}}
+@keyframes slideR{from{transform:translateX(-24px);opacity:.3}}
+.paw-stamp{position:absolute;inset:auto;width:22px;height:22px;pointer-events:none;color:var(--accent);animation:stamp .7s ease forwards}
+@keyframes stamp{0%{transform:scale(.2) rotate(-20deg);opacity:0}30%{transform:scale(1.15) rotate(8deg);opacity:.9}100%{transform:scale(1) translateY(-14px);opacity:0}}
+
+/* agenda */
+.agenda{display:flex;flex-direction:column;padding-top:16px}
+.ag-head{display:flex;align-items:flex-end;justify-content:space-between;gap:8px;padding-inline:4px 0}
+.ag-titles{display:flex;flex-direction:column;gap:2px;min-width:0}
+.ag-head h2{margin:0;font-family:var(--font-display);font-weight:400;font-size:19px}
+.ag-titles span{font-size:12px;color:var(--ink-2)}
+/* cut-out cats */
+.mrow{display:flex;align-items:flex-end;gap:4px;min-width:0}
+.sitter{display:block;width:auto;object-fit:contain;cursor:pointer;transform-origin:50% 100%;
+  transform:scaleX(var(--fx,1));filter:drop-shadow(0 3px 4px rgba(74,66,80,.16));user-select:none;-webkit-user-select:none;-webkit-user-drag:none;-webkit-touch-callout:none}
+.mcat{height:54px;max-width:80px;margin-bottom:-2px;animation:breathe2 4.2s ease-in-out infinite}
+.mcat[src=""],.mcat:not([src]){visibility:hidden}
+@keyframes breathe2{50%{transform:scaleX(var(--fx,1)) scaleY(1.03)}}
+.sitter.hop{animation:hop .55s cubic-bezier(.3,1.6,.5,1)!important}
+@keyframes hop{0%{transform:scaleX(var(--fx,1))}35%{transform:translateY(-22px) scaleX(var(--fx,1)) rotate(-4deg)}70%{transform:scale(calc(var(--fx,1)*1.07),.92)}100%{transform:scaleX(var(--fx,1))}}
+.sitter.shy{animation:shy .7s ease!important}
+@keyframes shy{30%{transform:scaleX(var(--fx,1)) translateY(6px) scaleY(.9)}60%{transform:scaleX(calc(var(--fx,1)*-1))}}
+.peek{position:fixed;left:50%;bottom:0;height:130px;width:auto;max-width:150px;z-index:4;cursor:pointer;transform:translate(-50%,105%);transition:transform .6s cubic-bezier(.3,1.4,.5,1);
+  filter:drop-shadow(0 -2px 8px rgba(74,66,80,.15));-webkit-user-drag:none;-webkit-touch-callout:none}
+.peek.up{transform:translate(-50%,36%)}
+.peek.caught{transform:translate(-50%,10%) rotate(-6deg)}
+.parade{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 2px);height:96px;pointer-events:none;z-index:9;overflow:hidden}
+.parade img{position:absolute;bottom:0;left:0;height:84px;width:auto;max-width:120px;pointer-events:auto;filter:drop-shadow(0 4px 6px rgba(74,66,80,.2));
+  animation:walk var(--dur,7s) linear var(--delay,0s) both}
+@keyframes walk{0%{transform:translateX(-140px) translateY(0)}10%{transform:translateX(calc(10vw - 140px)) translateY(-8px)}20%{transform:translateX(calc(20vw - 120px)) translateY(0)}30%{transform:translateX(calc(30vw - 110px)) translateY(-8px)}40%{transform:translateX(calc(40vw - 90px)) translateY(0)}50%{transform:translateX(calc(50vw - 70px)) translateY(-8px)}60%{transform:translateX(calc(60vw - 50px)) translateY(0)}70%{transform:translateX(calc(70vw - 30px)) translateY(-8px)}80%{transform:translateX(calc(80vw - 10px)) translateY(0)}90%{transform:translateX(calc(90vw + 10px)) translateY(-8px)}100%{transform:translateX(calc(100vw + 30px)) translateY(0)}}
+.mbubble{position:fixed;transform:translate(-50%,-100%);background:var(--surface);color:var(--ink);font-family:var(--font-display);font-size:13px;line-height:1.35;padding:6px 10px;border-radius:12px;box-shadow:var(--shadow);white-space:nowrap;max-width:60vw;overflow:hidden;text-overflow:ellipsis;animation:mpop 2.4s ease forwards;z-index:55}
+@keyframes mpop{0%{opacity:0;transform:translate(-50%,-80%) scale(.7)}10%{opacity:1;transform:translate(-50%,-100%) scale(1)}85%{opacity:1}100%{opacity:0;transform:translate(-50%,-115%)}}
+.wand{position:fixed;width:34px;height:34px;pointer-events:none;z-index:52;transform:translate(-50%,-50%);animation:wand .9s ease forwards}
+@keyframes wand{0%{opacity:0;transform:translate(-50%,-50%) rotate(-30deg) scale(.6)}20%{opacity:1}40%{transform:translate(-50%,-50%) rotate(25deg)}60%{transform:translate(-50%,-50%) rotate(-15deg)}100%{opacity:0;transform:translate(-50%,-70%) rotate(10deg)}}
+.mbubble.below{transform:translate(-50%,0);animation-name:mpopb}
+@keyframes mpopb{0%{opacity:0;transform:translate(-50%,-10%) scale(.7)}10%{opacity:1;transform:translate(-50%,0) scale(1)}85%{opacity:1}100%{opacity:0;transform:translate(-50%,10%)}}
+@media (max-height:700px){.peek{height:110px}}
+.list{padding-block:10px calc(150px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px;-webkit-overflow-scrolling:touch}
+.ev{display:flex;align-items:center;gap:12px;background:var(--surface);border-radius:16px;padding:12px 12px 12px 14px;text-align:left;width:100%}
+.ev .tag{flex:none;width:10px;height:10px;border-radius:50%}
+.ev .body{flex:1;min-width:0}
+.ev .t{font-size:15px;font-weight:500;overflow-wrap:anywhere}
+.ev .m{font-size:12px;color:var(--ink-2);margin-top:2px;overflow-wrap:anywhere}
+.ev.done .t{text-decoration:line-through;color:var(--ink-3)}
+.check{flex:none;width:26px;height:26px;border-radius:50%;border:1.5px solid var(--ink-3);display:grid;place-items:center;color:transparent}
+.ev.done .check{background:var(--c-mint);border-color:var(--c-mint);color:#fff}
+.check svg{width:14px;height:14px}
+.empty{color:var(--ink-2);font-size:14px;padding:18px 6px;line-height:1.7}
+.note{font-size:11px;color:var(--ink-3);padding:4px 6px}
+
+/* fab */
+.fab{position:fixed;right:max(16px,calc(50vw - 224px),env(safe-area-inset-right,0px));bottom:calc(18px + env(safe-area-inset-bottom,0px));width:58px;height:58px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;box-shadow:0 8px 20px rgba(233,168,184,.55);z-index:5}
+.fab svg{width:26px;height:26px}
+.fab:active{transform:scale(.94)}
+
+/* cat companion */
+.cat-zone{position:fixed;left:max(16px,calc(50vw - 224px),env(safe-area-inset-left,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:6;display:flex;align-items:flex-end;gap:10px;pointer-events:none}
+.cat{position:relative;width:86px;height:86px;pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab}
+.cat .ear{position:absolute;top:-9px;width:30px;height:30px;background:var(--ear,var(--c-pink));border-radius:6px 22px 4px 22px;z-index:0}
+.cat .ear.l{left:6px;transform:rotate(-12deg)}
+.cat .ear.r{right:6px;transform:scaleX(-1) rotate(-12deg)}
+.cat .face{position:relative;z-index:1;width:100%;height:100%;border-radius:50%;overflow:hidden;border:4px solid var(--ear,var(--c-pink));background:var(--surface);box-shadow:var(--shadow)}
+.cat .face img,.cat .face svg{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
+.cat .blush{position:absolute;z-index:2;bottom:22px;width:14px;height:8px;border-radius:50%;background:#f39bb0;opacity:0;transition:opacity .3s;filter:blur(1px)}
+.cat .blush.l{left:12px}.cat .blush.r{right:12px}
+.cat.blushing .blush{opacity:.75}
+.cat .zz{position:absolute;z-index:3;right:-6px;top:-14px;font-family:var(--font-display);color:var(--ink-2);font-size:16px;opacity:0}
+.cat.sleep .zz{animation:zz 2.4s infinite}
+.cat.sleep .face{filter:saturate(.7) brightness(.92)}
+@keyframes zz{0%{opacity:0;transform:translate(0,6px)}40%{opacity:1}100%{opacity:0;transform:translate(10px,-14px)}}
+.cat.idle{animation:breathe 3.6s ease-in-out infinite}
+@keyframes breathe{50%{transform:scale(1.03)}}
+.cat.bounce{animation:bounce .55s cubic-bezier(.3,1.6,.5,1)}
+@keyframes bounce{0%{transform:scale(1)}30%{transform:scale(.88,1.08) translateY(-12px)}60%{transform:scale(1.06,.94)}100%{transform:scale(1)}}
+.cat.wiggle{animation:wiggle .6s ease}
+@keyframes wiggle{20%{transform:rotate(-9deg)}40%{transform:rotate(8deg)}60%{transform:rotate(-5deg)}80%{transform:rotate(3deg)}}
+.cat.purr{animation:purr .12s linear 10}
+@keyframes purr{50%{transform:translateX(1px) rotate(.8deg)}}
+.cat.spin{animation:spin .7s ease}
+@keyframes spin{to{transform:rotate(360deg)}}
+.cat .ear{transition:transform .25s}
+.cat.happy .ear.l{transform:rotate(-24deg) translateY(-3px)}
+.cat.happy .ear.r{transform:scaleX(-1) rotate(-24deg) translateY(-3px)}
+
+.bubble{pointer-events:auto;max-width:min(230px,calc(100vw - 200px));background:var(--surface);color:var(--ink);border-radius:18px 18px 18px 6px;padding:10px 14px;font-family:var(--font-display);font-size:15px;line-height:1.45;box-shadow:var(--shadow);margin-bottom:46px;transform-origin:0 100%;transition:opacity .25s,transform .25s}
+.bubble[data-hide="1"]{opacity:0;transform:scale(.8);pointer-events:none}
+.treat{pointer-events:auto;position:absolute;left:68px;bottom:-4px;width:34px;height:34px;border-radius:50%;background:var(--c-butter);display:grid;place-items:center;box-shadow:var(--shadow);z-index:7}
+.treat svg{width:20px;height:20px}
+.fx{position:fixed;inset:0;pointer-events:none;z-index:50;overflow:hidden}
+.fx span{position:absolute;width:20px;height:20px;animation:floatUp 1.4s ease-out forwards}
+@keyframes floatUp{0%{opacity:0;transform:translate(0,0) scale(.4)}15%{opacity:1}100%{opacity:0;transform:translate(var(--dx),-140px) scale(1.1) rotate(var(--rot))}}
+.fish-fly{position:fixed;z-index:51;width:26px;height:26px;pointer-events:none;transition:transform .55s cubic-bezier(.4,-.3,.6,1),opacity .2s .5s}
+
+/* sheets */
+.scrim{position:fixed;inset:0;background:rgba(40,28,40,.32);z-index:20;opacity:0;transition:opacity .25s}
+.scrim.on{opacity:1}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:21;max-width:480px;margin:0 auto;background:var(--surface);border-radius:24px 24px 0 0;
+  padding-left:max(18px,env(safe-area-inset-left,0px));padding-right:max(18px,env(safe-area-inset-right,0px));padding-block:10px calc(18px + env(safe-area-inset-bottom,0px));
+  max-height:88%;overflow-y:auto;transform:translateY(105%);transition:transform .3s cubic-bezier(.2,.8,.2,1)}
+.sheet.on{transform:none}
+.grab{width:40px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 12px}
+.sheet h3{margin:0 0 14px;font-family:var(--font-display);font-weight:400;font-size:20px}
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.field label,.lbl{font-size:12px;color:var(--ink-2);letter-spacing:.06em}
+.inp{width:100%;box-sizing:border-box;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);border-radius:12px;padding:11px 12px;font:inherit;font-size:16px}
+.inp:focus{border-color:var(--accent);outline:none}
+textarea.inp{min-height:64px;resize:vertical}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row2 .field{min-width:0}
+.swatches{display:flex;gap:10px;flex-wrap:wrap}
+.sw{width:32px;height:32px;border-radius:50%;box-shadow:inset 0 0 0 2px transparent;position:relative}
+.sw[aria-pressed="true"]::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:2px solid var(--ink-2)}
+.actions{display:flex;gap:10px;margin-top:6px}
+.btn{flex:1;padding:13px;border-radius:14px;font-weight:500}
+.btn.primary{background:var(--accent);color:#fff}
+.btn.ghost{background:var(--surface-2)}
+.btn.danger{flex:0 0 auto;padding-inline:16px;background:var(--surface-2);color:#c96479}
+.roster{display:grid;grid-template-columns:repeat(4,1fr);gap:12px 8px;margin:10px 0 6px}
+.mate{display:flex;flex-direction:column;align-items:center;gap:5px;min-width:0}
+.mate .av{width:100%;max-width:68px;aspect-ratio:1;border-radius:50%;overflow:hidden;border:3px solid transparent;background:var(--surface-2);transition:transform .15s}
+.mate .av img{width:100%;height:100%;object-fit:cover;display:block}
+.mate span{font-size:12px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.mate[aria-pressed="true"] .av{border-color:var(--accent);transform:scale(1.06)}
+.mate[aria-pressed="true"] span{color:var(--ink);font-weight:500}
+.mate:active .av{transform:scale(.94)}
+.trait{font-size:13px;color:var(--ink-2);margin:0 0 12px;min-height:1.4em}
+.toggle{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-radius:14px;background:var(--surface-2);margin-bottom:14px;width:100%;text-align:left}
+.toggle .sw2{flex:none;width:44px;height:26px;border-radius:13px;background:var(--ink-3);position:relative;transition:background .2s}
+.toggle .sw2::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .2s}
+.toggle[aria-pressed="true"] .sw2{background:var(--accent)}
+.toggle[aria-pressed="true"] .sw2::after{transform:translateX(18px)}
+.hint{font-size:12px;color:var(--ink-2);line-height:1.6;margin:4px 0 14px}
+.toast{position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top,0px));transform:translate(-50%,-80px);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:999px;font-size:13px;z-index:60;transition:transform .3s}
+.toast.on{transform:translate(-50%,0)}
+.stats{display:flex;gap:10px;margin-bottom:16px}
+.stat{flex:1;background:var(--surface-2);border-radius:14px;padding:10px 12px}
+.stat b{display:block;font-family:var(--font-display);font-weight:400;font-size:22px;font-variant-numeric:tabular-nums}
+.stat span{font-size:11px;color:var(--ink-2)}
+@media (prefers-reduced-motion: reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+@media (max-height:640px){.day{min-height:46px}.month h1{font-size:24px}}
+</style>
+
+<div class="app" id="app">
+  <header class="top">
+    <div class="month"><div class="mrow"><h1 id="mTitle">11 月</h1><img class="sitter mcat" id="mCat" alt="" draggable="false"></div><small id="mSub">2026 · 民國115年</small></div>
+    <button class="today-btn" id="todayBtn">今天</button>
+    <button class="icon-btn" id="prevBtn" aria-label="上個月"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <button class="icon-btn" id="nextBtn" aria-label="下個月"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg></button>
+    <button class="icon-btn" id="setBtn" aria-label="貓咪設定"><svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="12" cy="15.5" rx="4.6" ry="3.8"/><ellipse cx="6" cy="10" rx="2" ry="2.6"/><ellipse cx="18" cy="10" rx="2" ry="2.6"/><ellipse cx="9.3" cy="5.8" rx="1.9" ry="2.5"/><ellipse cx="14.7" cy="5.8" rx="1.9" ry="2.5"/></svg></button>
+  </header>
+
+  <section class="cal" id="cal">
+    <div class="wk"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <section class="agenda">
+    <div class="ag-head">
+      <div class="ag-titles"><h2 id="agTitle">11月13日</h2><span id="agSub">星期五</span></div>
+    </div>
+    <div class="list" id="list"></div>
+  </section>
+
+  <div class="cat-zone">
+    <div class="cat idle" id="cat" role="button" tabindex="0" aria-label="值班貓咪：點一下、摸摸牠，或長按換下一隻">
+      <span class="ear l"></span><span class="ear r"></span>
+      <div class="face" id="catFace"></div>
+      <span class="blush l"></span><span class="blush r"></span>
+      <span class="zz">z z</span>
+      <button class="treat" id="treatBtn" aria-label="餵小魚乾"><svg viewBox="0 0 24 24" fill="#e39a5f"><path d="M3 12c3-4.5 8-6 12.5-3.2L20 6v12l-4.5-2.8C11 18 6 16.5 3 12z"/><circle cx="7.3" cy="11.3" r="1.1" fill="#fff"/></svg></button>
+    </div>
+    <div class="bubble" id="bubble" data-hide="1" aria-live="polite"></div>
+  </div>
+
+  <button class="fab" id="fab" aria-label="新增行程"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+</div>
+
+<div class="scrim" id="scrim" hidden></div>
+
+<form class="sheet" id="evSheet" autocomplete="off" hidden>
+  <div class="grab"></div>
+  <h3 id="evSheetTitle">新增行程</h3>
+  <div class="field"><label for="fTitle">標題</label><input class="inp" id="fTitle" maxlength="60" placeholder="例如：帶貓咪打疫苗" required></div>
+  <div class="row2">
+    <div class="field"><label for="fDate">日期</label><input class="inp" type="date" id="fDate" required></div>
+    <div class="field"><label for="fTime">時間（可空白＝整天）</label><input class="inp" type="time" id="fTime"></div>
+  </div>
+  <div class="field"><span class="lbl">顏色</span><div class="swatches" id="swatches"></div></div>
+  <div class="field"><label for="fNote">備註</label><textarea class="inp" id="fNote" maxlength="300" placeholder="地點、要帶的東西…"></textarea></div>
+  <div class="actions">
+    <button type="button" class="btn danger" id="delBtn" hidden>刪除</button>
+    <button type="button" class="btn ghost" id="cancelBtn">取消</button>
+    <button type="submit" class="btn primary">儲存</button>
+  </div>
+</form>
+
+<div class="sheet" id="setSheet" hidden>
+  <div class="grab"></div>
+  <h3>我家 11 隻貓</h3>
+  <button type="button" class="toggle" id="autoBtn" aria-pressed="true"><span>每天自動換一隻貓值班</span><span class="sw2"></span></button>
+  <span class="lbl">點一隻，讓牠來陪你（長按左下角的貓也能換）</span>
+  <div class="roster" id="roster"></div>
+  <p class="trait" id="trait"></p>
+  <div class="stats">
+    <div class="stat"><b id="stPets">0</b><span id="stPetsL">摸摸次數</span></div>
+    <div class="stat"><b id="stTreats">0</b><span>小魚乾</span></div>
+    <div class="stat"><b id="stDone">0</b><span>你完成的事</span></div>
+  </div>
+  <p class="hint" id="storeHint"></p>
+  <div class="actions"><button type="button" class="btn ghost" id="paradeBtn">全員集合！</button><button type="button" class="btn primary" id="setDone">好了</button></div>
+</div>
+
+<div class="parade" id="parade" aria-hidden="true"></div>
+<img class="peek" id="peek" alt="" hidden>
+<div class="fx" id="fx"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2, "0");
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const parseYmd = s => { const [y,m,d] = s.split("-").map(Number); return new Date(y, m-1, d); };
+const WD = ["日","一","二","三","四","五","六"];
+const COLORS = ["pink","peach","butter","mint","sky","lav"];
+const rand = a => a[Math.floor(Math.random()*a.length)];
+
+/* ---------- state ---------- */
+const S = {
+  view: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+  sel: ymd(new Date()),
+  events: new Map(),
+  settings: { auto: true, cur: "qq", stats: {}, done: 0 },
+  mode: "local",
+  col: null,
+};
+
+/* ---------- local storage helpers ---------- */
+const LS = {
+  get(k, f){ try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : f; } catch { return f; } },
+  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } },
+};
+function loadLocal(){
+  const evs = LS.get("mc_events", []);
+  S.events = new Map(evs.map(e => [e.id, e]));
+  Object.assign(S.settings, LS.get("mc_settings", {}));
+}
+loadLocal();
+
+/* ---------- persistence (cloud db when available, else this device) ---------- */
+let settingsTimer = null;
+const Store = {
+  async putEvent(ev){
+    S.events.set(ev.id, ev); render();
+    if (S.mode === "cloud") { try { await S.col.doc(ev.id).set({ ...ev, kind: "event" }); } catch(e){ toast("沒存成功，請再試一次"); } }
+    else LS.set("mc_events", [...S.events.values()]);
+  },
+  async delEvent(id){
+    S.events.delete(id); render();
+    if (S.mode === "cloud") { try { await S.col.doc(id).delete(); } catch(e){ toast("刪除失敗，請再試一次"); } }
+    else LS.set("mc_events", [...S.events.values()]);
+  },
+  saveSettings(){
+    clearTimeout(settingsTimer);
+    settingsTimer = setTimeout(async () => {
+      const s = { ...S.settings };
+      if (S.mode === "cloud") { try { await S.col.doc("settings").set({ ...s, kind: "settings" }); } catch {} }
+      else LS.set("mc_settings", s);
+    }, 1200);
+  },
+};
+
+async function connect(){
+  if (!window.claude || typeof window.claude.use !== "function") return updateHint();
+  try {
+    const [db, user] = await Promise.all([claude.use("db"), claude.use("user")]);
+    if (!db || !user) return updateHint();
+    const id = await user.id();
+    if (!id) return updateHint();
+    S.col = db.collection("data/users/" + id);
+    const timer = setTimeout(() => toast("雲端資料載入較慢，先顯示這台裝置的資料"), 10000);
+    let first = true;
+    S.col.onSnapshot(snap => {
+      clearTimeout(timer);
+      const evs = new Map();
+      for (const d of snap.docs) {
+        const v = d.data(); if (!v) continue;
+        if (v.kind === "event") evs.set(d.id, { ...v, id: d.id });
+        else if (d.id === "settings") Object.assign(S.settings, v);
+      }
+      if (first && snap.metadata && !snap.metadata.fromCache) {
+        first = false;
+        // carry over anything saved on this device before the cloud was connected
+        if (evs.size === 0 && S.events.size > 0) {
+          for (const e of S.events.values()) { evs.set(e.id, e); S.col.doc(e.id).set({ ...e, kind: "event" }).catch(()=>{}); }
+        }
+      }
+      S.mode = "cloud"; S.events = evs; render(); renderCat(); updateHint();
+    }, () => { clearTimeout(timer); toast("雲端暫時連不上，資料先存在這台裝置"); });
+  } catch { updateHint(); }
+}
+
+/* ---------- calendar render ---------- */
+function eventsOn(day){
+  return [...S.events.values()].filter(e => e.date === day)
+    .sort((a,b) => (a.time||"").localeCompare(b.time||"") || (a.created||0)-(b.created||0));
+}
+function render(dir){
+  const v = S.view, y = v.getFullYear(), m = v.getMonth();
+  $("mTitle").textContent = `${m+1} 月`;
+  $("mSub").textContent = `${y} · 民國${y-1911}年`;
+  renderMonthCat(y, m, !!dir);
+  const start = new Date(y, m, 1 - v.getDay());
+  const today = ymd(new Date());
+  const grid = $("grid"); grid.innerHTML = "";
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+    const k = ymd(d), evs = eventsOn(k);
+    const b = document.createElement("button");
+    b.className = "day" + (d.getMonth() !== m ? " other" : "") + (k === today ? " today" : "") + (k === S.sel ? " sel" : "") + ((d.getDay()%6===0) ? " wkend" : "");
+    b.dataset.d = k;
+    b.setAttribute("aria-label", `${d.getMonth()+1}月${d.getDate()}日，${evs.length} 個行程`);
+    const n = document.createElement("span"); n.className = "n"; n.textContent = d.getDate();
+    const chips = document.createElement("span"); chips.className = "chips";
+    const shown = evs.length > 3 ? 2 : 3;
+    evs.slice(0, shown).forEach(e => {
+      const c = document.createElement("span"); c.className = "chip" + (e.done ? " done" : "");
+      c.style.background = `var(--c-${e.color||"pink"})`; c.textContent = e.title; chips.appendChild(c);
+    });
+    if (evs.length > shown) { const mo = document.createElement("span"); mo.className = "more"; mo.textContent = `+${evs.length - shown}`; chips.appendChild(mo); }
+    b.append(n, chips); grid.appendChild(b);
+  }
+  if (dir) { grid.classList.remove("slide-l","slide-r"); void grid.offsetWidth; grid.classList.add(dir > 0 ? "slide-l" : "slide-r"); }
+  renderAgenda();
+}
+function renderAgenda(){
+  const d = parseYmd(S.sel), evs = eventsOn(S.sel);
+  $("agTitle").textContent = `${d.getMonth()+1}月${d.getDate()}日`;
+  $("agSub").textContent = `星期${WD[d.getDay()]}` + (evs.length ? ` · ${evs.length} 件事` : "");
+  const list = $("list"); list.innerHTML = "";
+  if (!evs.length) {
+    const p = document.createElement("div"); p.className = "empty";
+    p.textContent = S.events.size ? "這天沒有安排，可以跟貓咪一起放空。" : "還沒有任何行程。按右下角的 ＋ 新增第一個吧！";
+    list.appendChild(p);
+  }
+  for (const e of evs) {
+    const row = document.createElement("div"); row.className = "ev" + (e.done ? " done" : "");
+    const tag = document.createElement("span"); tag.className = "tag"; tag.style.background = `var(--c-${e.color||"pink"})`;
+    const body = document.createElement("button"); body.className = "body"; body.style.textAlign = "left";
+    const t = document.createElement("div"); t.className = "t"; t.textContent = e.title;
+    const m = document.createElement("div"); m.className = "m"; m.textContent = (e.time || "整天") + (e.note ? ` · ${e.note}` : "");
+    body.append(t, m); body.onclick = () => openEvent(e);
+    const c = document.createElement("button"); c.className = "check"; c.setAttribute("aria-label", e.done ? "標為未完成" : "標為完成");
+    c.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg>';
+    c.onclick = ev => toggleDone(e, ev);
+    row.append(tag, body, c); list.appendChild(row);
+  }
+  const note = document.createElement("div"); note.className = "note";
+  note.textContent = S.mode === "cloud" ? "已同步到你的帳號" : "資料存在這台裝置的瀏覽器裡";
+  list.appendChild(note);
+}
+
+$("grid").addEventListener("click", ev => {
+  const b = ev.target.closest(".day"); if (!b) return;
+  const k = b.dataset.d, d = parseYmd(k);
+  const same = k === S.sel;
+  S.sel = k;
+  if (d.getMonth() !== S.view.getMonth()) { const dir = d > S.view ? 1 : -1; S.view = new Date(d.getFullYear(), d.getMonth(), 1); render(dir); }
+  else render();
+  stampPaw(k);
+  if (same) openEvent(null); else { catOnDay(k); if (eventsOn(k).length) setTimeout(() => sitterReact(), 250); }
+});
+function stampPaw(k){
+  const cell = $("grid").querySelector(`[data-d="${k}"]`); if (!cell) return;
+  const s = document.createElementNS("http://www.w3.org/2000/svg","svg");
+  s.setAttribute("viewBox","0 0 24 24"); s.setAttribute("class","paw-stamp"); s.setAttribute("fill","currentColor");
+  s.innerHTML = PAW; s.style.right = "2px"; s.style.top = "2px";
+  cell.appendChild(s); setTimeout(() => s.remove(), 800);
+}
+function shiftMonth(n){ S.view = new Date(S.view.getFullYear(), S.view.getMonth()+n, 1); render(n); }
+$("prevBtn").onclick = () => shiftMonth(-1);
+$("nextBtn").onclick = () => shiftMonth(1);
+$("todayBtn").onclick = () => { const t = new Date(); const dir = t < S.view ? -1 : (t.getMonth() !== S.view.getMonth() ? 1 : 0); S.view = new Date(t.getFullYear(), t.getMonth(), 1); S.sel = ymd(t); render(dir || undefined); catOnDay(S.sel); };
+// swipe months
+(() => {
+  let x0 = null, y0 = 0;
+  const cal = $("cal");
+  cal.addEventListener("touchstart", e => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
+  cal.addEventListener("touchend", e => {
+    if (x0 === null) return; const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0; x0 = null;
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) shiftMonth(dx < 0 ? 1 : -1);
+  });
+})();
+
+/* ---------- event sheet ---------- */
+let editing = null, pickedColor = "pink";
+COLORS.forEach(c => {
+  const b = document.createElement("button"); b.type = "button"; b.className = "sw"; b.dataset.c = c;
+  b.style.background = `var(--c-${c})`; b.setAttribute("aria-label", c); b.setAttribute("aria-pressed","false");
+  b.onclick = () => pickColor(c); $("swatches").appendChild(b);
+});
+function pickColor(c){ pickedColor = c; $("swatches").querySelectorAll(".sw").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.c === c))); }
+function openSheet(id){
+  const sc = $("scrim"), sh = $(id);
+  sc.hidden = false; sh.hidden = false;
+  requestAnimationFrame(() => { sc.classList.add("on"); sh.classList.add("on"); });
+}
+function closeSheets(){
+  const sc = $("scrim"); sc.classList.remove("on");
+  document.querySelectorAll(".sheet.on").forEach(s => s.classList.remove("on"));
+  setTimeout(() => { sc.hidden = true; document.querySelectorAll(".sheet").forEach(s => { if (!s.classList.contains("on")) s.hidden = true; }); }, 300);
+}
+$("scrim").onclick = closeSheets;
+function openEvent(e){
+  editing = e;
+  $("evSheetTitle").textContent = e ? "編輯行程" : "新增行程";
+  $("fTitle").value = e ? e.title : "";
+  $("fDate").value = e ? e.date : S.sel;
+  $("fTime").value = e ? (e.time || "") : "";
+  $("fNote").value = e ? (e.note || "") : "";
+  pickColor(e ? (e.color || "pink") : rand(COLORS));
+  $("delBtn").hidden = !e;
+  openSheet("evSheet");
+  setTimeout(() => { if (!e) $("fTitle").focus(); }, 320);
+}
+$("fab").onclick = () => openEvent(null);
+$("cancelBtn").onclick = closeSheets;
+$("evSheet").addEventListener("submit", ev => {
+  ev.preventDefault();
+  const title = $("fTitle").value.trim(); if (!title) return;
+  const isNew = !editing;
+  const e = { ...(editing || { id: "ev_" + Date.now().toString(36) + Math.random().toString(36).slice(2,6), created: Date.now(), done: false }),
+    title, date: $("fDate").value || S.sel, time: $("fTime").value || "", note: $("fNote").value.trim(), color: pickedColor };
+  Store.putEvent(e);
+  closeSheets();
+  if (e.date !== S.sel) { S.sel = e.date; const d = parseYmd(e.date); S.view = new Date(d.getFullYear(), d.getMonth(), 1); render(); }
+  if (isNew) catOnAdd(e);
+});
+let delArmed = false;
+$("delBtn").onclick = () => {
+  if (!editing) return;
+  if (!delArmed) { delArmed = true; $("delBtn").textContent = "確定刪除？"; setTimeout(() => { delArmed = false; $("delBtn").textContent = "刪除"; }, 2500); return; }
+  delArmed = false; $("delBtn").textContent = "刪除";
+  Store.delEvent(editing.id); closeSheets(); say(rand(["好喔，劃掉了喵", "那就不用去囉～", "刪掉了，輕鬆一點"]), "wiggle");
+};
+function toggleDone(e, ev){
+  const ne = { ...e, done: !e.done };
+  Store.putEvent(ne);
+  if (ne.done) {
+    S.settings.done = (S.settings.done||0) + 1; Store.saveSettings();
+    const r = ev.currentTarget.getBoundingClientRect(); burst(r.left + r.width/2, r.top, "paw", 7);
+    const left = eventsOn(S.sel).filter(x => !x.done).length;
+    say(left ? rand([`完成一件！還剩 ${left} 件喵`, "好棒！摸摸頭", `做得好～再 ${left} 件就收工`]) : rand(["今天的事都做完了！可以陪我玩了吧", "全部完成！賞你一個呼嚕", "收工！來躺貓肚子吧"]), "spin", true);
+    if (left) sitterReact(rand(["讚喔！", "再接再厲喵", "（拍手）"])); else setTimeout(parade, 700);
+  }
+}
+
+/* ---------- cat ---------- */
+const PAW = '<ellipse cx="12" cy="15.5" rx="4.6" ry="3.8"/><ellipse cx="6" cy="10" rx="2" ry="2.6"/><ellipse cx="18" cy="10" rx="2" ry="2.6"/><ellipse cx="9.3" cy="5.8" rx="1.9" ry="2.5"/><ellipse cx="14.7" cy="5.8" rx="1.9" ry="2.5"/>';
+const HEART = '<path d="M12 20s-7-4.4-9-8.6C1.6 8.3 3.5 5 6.7 5c2 0 3.3 1.1 4.3 2.5C12 6.1 13.3 5 15.3 5c3.2 0 5.1 3.3 3.7 6.4C19 15.6 12 20 12 20z"/>';
+const PLACEHOLDER = `<svg viewBox="0 0 100 100"><rect width="100" height="100" fill="var(--c-butter)"/><path d="M22 40 L28 14 L44 30 Z M78 40 L72 14 L56 30 Z" fill="var(--c-peach)"/><ellipse cx="50" cy="56" rx="34" ry="30" fill="var(--c-peach)"/><ellipse cx="38" cy="52" rx="4" ry="5.5" fill="#4a4250"/><ellipse cx="62" cy="52" rx="4" ry="5.5" fill="#4a4250"/><path d="M46 62 L50 65 L54 62" fill="none" stroke="#4a4250" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M50 65 v4 M50 69 q-5 4 -9 1 M50 69 q5 4 9 1" fill="none" stroke="#4a4250" stroke-width="2" stroke-linecap="round"/><ellipse cx="30" cy="64" rx="6" ry="3.5" fill="#f39bb0" opacity=".6"/><ellipse cx="70" cy="64" rx="6" ry="3.5" fill="#f39bb0" opacity=".6"/></svg>`;
+
+const CATS = [
+  { id: "qq", img: "qq-2", name: "QQ", ear: "peach",  trait: "奶油色，最愛翻肚睡覺",       lines: ["肚子給你摸，但我要繼續睡", "呼…（翻肚）", "QQ 今天也是軟 Q 的", "鼻子粉粉的，要親一下嗎"] },
+  { id: "pudding",  name: "布丁", ear: "sky",    trait: "大眼睛好奇寶寶",             lines: ["那是什麼？那是什麼？", "我在看你喔（瞪大眼）", "布丁會一直跟著你", "你在忙什麼？我也要看"] },
+  { id: "coco",     name: "可可", ear: "lav",    trait: "最會歪頭裝無辜",             lines: ["（歪頭）蛤？", "你剛剛說什麼？我歪頭想一下", "可可聽不懂，但可可很可愛", "我沒有做壞事喔（歪頭）"] },
+  { id: "qiuqiu",   name: "球球", ear: "butter", trait: "三花，臭臉戴金鈴鐺",         lines: ["……（臭臉）", "不要看我，我在生氣", "哼，鈴鐺響就代表我來了", "摸可以，但不要太久"] },
+  { id: "duoduo",   name: "多多", ear: "pink",   trait: "賓士貓，有小鬍子的紳士",     lines: ["本紳士來巡視了", "鬍子今天也很整齊", "請叫我多多先生", "紅項圈是我的正式服裝"] },
+  { id: "niuniu",   name: "妞妞", ear: "pink",   trait: "戴蝴蝶結，尾巴蓬蓬",         lines: ["今天的蝴蝶結好看嗎", "妞妞要被誇獎", "尾巴蓬蓬給你看", "我是淑女，摸頭要輕輕的"] },
+  { id: "yuki",     name: "Yuki", ear: "sky",    trait: "藍眼睛的棉花糖",             lines: ["Yuki 是一朵雲", "藍眼睛看著你～", "軟綿綿，要抱抱嗎", "我掉的毛也是愛"] },
+  { id: "mochi",    name: "麻糬", ear: "peach",  trait: "三花，兩隻眼睛不同色",       lines: ["我在洗手台等你", "左右眼睛顏色不一樣，很特別吧", "麻糬黏黏的，黏著你", "要洗手嗎？我先佔位子了"] },
+  { id: "yuanyuan", name: "圓圓", ear: "mint",   trait: "辦公桌監工",                 lines: ["文件我幫你壓著了", "圓圓監工中，快點做事", "今天也準時上班喵", "這份資料我先坐一下"] },
+  { id: "miling",   name: "咪鈴", ear: "butter", trait: "戴小帽子一臉震驚",           lines: ["為什麼我戴著帽子…", "咪鈴很震驚", "這頂帽子是誰的主意", "（瞪大眼）你剛說什麼！"] },
+  { id: "wanwan",   name: "丸丸", ear: "lav",    trait: "最愛把臉貼到鏡頭前",         lines: ["（臉貼過來）哈囉！", "丸丸靠近一點給你看", "鏡頭是我的", "我的鼻子很大對不對"] },
+];
+const byId = id => CATS.find(c => c.id === id) || CATS[0];
+function dutyCat(){
+  if (!S.settings.auto) return byId(S.settings.cur);
+  const t = new Date(); const day = Math.floor(new Date(t.getFullYear(), t.getMonth(), t.getDate()).getTime() / 86400000);
+  return CATS[((day % CATS.length) + CATS.length) % CATS.length];
+}
+const curCat = () => dutyCat();
+const catName = () => curCat().name;
+function bump(k, id = curCat().id){
+  const st = S.settings.stats || (S.settings.stats = {});
+  const o = { p: 0, t: 0, ...(st[id] || {}) }; o[k]++; st[id] = o; Store.saveSettings(); return o[k];
+}
+function renderCat(){
+  const c = curCat(), face = $("catFace"), src = `cats/${c.img || c.id + "-v2"}.jpg`;
+  cat.style.setProperty("--ear", `var(--c-${c.ear})`);
+  cat.setAttribute("aria-label", `${c.name}：點一下、摸摸牠，或長按換下一隻`);
+  const img = face.querySelector("img");
+  if (img && img.getAttribute("src") === src) return;
+  face.innerHTML = ""; const im = new Image(); im.alt = c.name; im.src = src;
+  im.onerror = () => { face.innerHTML = PLACEHOLDER; };
+  face.appendChild(im);
+}
+
+const cat = $("cat"), bubble = $("bubble");
+let bubbleTimer = null, animTimer = null, lastTalk = Date.now();
+function animate(cls){
+  if (!cls) return;
+  cat.classList.remove("bounce","wiggle","purr","spin","idle");
+  void cat.offsetWidth; cat.classList.add(cls);
+  clearTimeout(animTimer); animTimer = setTimeout(() => { cat.classList.remove(cls); if (!isSleepy()) cat.classList.add("idle"); }, 1300);
+}
+function say(text, anim, happy){
+  lastTalk = Date.now();
+  bubble.textContent = text; bubble.dataset.hide = "0";
+  animate(anim);
+  if (happy) { cat.classList.add("happy","blushing"); setTimeout(() => cat.classList.remove("happy","blushing"), 1800); }
+  clearTimeout(bubbleTimer); bubbleTimer = setTimeout(() => bubble.dataset.hide = "1", Math.max(2600, text.length * 160));
+}
+bubble.onclick = () => bubble.dataset.hide = "1";
+
+function burst(x, y, kind, n){
+  const fx = $("fx");
+  for (let i = 0; i < n; i++) {
+    const s = document.createElementNS("http://www.w3.org/2000/svg","svg");
+    s.setAttribute("viewBox","0 0 24 24");
+    s.setAttribute("fill", kind === "heart" ? rand(["#f2a7b8","#f6c1cc","#e98aa2"]) : rand(["var(--c-pink)","var(--c-lav)","var(--c-sky)","var(--c-mint)","var(--c-butter)"]));
+    s.innerHTML = kind === "heart" ? HEART : PAW;
+    const w = document.createElement("span"); w.appendChild(s);
+    w.style.left = (x - 10 + (Math.random()*30-15)) + "px"; w.style.top = (y - 10) + "px";
+    w.style.setProperty("--dx", (Math.random()*90-45) + "px"); w.style.setProperty("--rot", (Math.random()*60-30) + "deg");
+    w.style.animationDelay = (i * 60) + "ms";
+    fx.appendChild(w); setTimeout(() => w.remove(), 1600 + i*60);
+  }
+}
+function catCenter(){ const r = cat.getBoundingClientRect(); return [r.left + r.width/2, r.top + 10]; }
+
+const isSleepy = () => { const h = new Date().getHours(); return h >= 23 || h < 6; };
+function greet(){
+  const h = new Date().getHours(), n = catName();
+  const todays = eventsOn(ymd(new Date())).filter(e => !e.done);
+  let line;
+  if (isSleepy()) line = rand([`${n}已經睡了…呼…`, "這麼晚了還不睡喵？"]);
+  else if (h < 11) line = rand(["早安喵！今天也要好好吃早餐", "早～我先幫你暖好被窩了", "早安，今天要摸我幾次？"]);
+  else if (h < 14) line = rand(["午安！吃飯了嗎喵", "中午了，罐罐時間到了吧？"]);
+  else if (h < 18) line = rand(["下午好～想睡午覺喵", "下午茶時間，分我一口？"]);
+  else line = rand(["回來啦！今天辛苦了", "晚安前要記得摸我喔", "晚上好，陪我玩逗貓棒？"]);
+  if (!isSleepy()) line = `今天值班的是${n}！` + line;
+  if (todays.length) line += `　今天還有 ${todays.length} 件事喵。`;
+  say(line, "bounce");
+}
+function catOnDay(k){
+  const evs = eventsOn(k), d = parseYmd(k), today = ymd(new Date());
+  const diff = Math.round((d - parseYmd(today)) / 86400000);
+  const bday = evs.find(e => /生日|birthday/i.test(e.title));
+  const vet = evs.find(e => /獸醫|疫苗|看醫生|洗澡|剪指甲/.test(e.title));
+  let line;
+  if (bday) line = `「${bday.title}」！要買蛋糕嗎？我要吃奶油的部分`;
+  else if (vet) line = rand(["…那天我可以躲在床底下嗎", "又要出門？我先假裝不在家"]);
+  else if (evs.length >= 4) line = `這天有 ${evs.length} 件事，好忙喵！記得喝水`;
+  else if (evs.length) line = diff === 0 ? `今天有 ${evs.length} 件事，第一件是「${evs[0].title}」` : diff === 1 ? `明天要${evs[0].title}喔，別忘記` : `${d.getMonth()+1}/${d.getDate()} 有「${evs[0].title}」`;
+  else if (diff === 0) line = "今天沒安排！那就陪我曬太陽吧";
+  else if (d.getDay() % 6 === 0) line = rand(["週末！要一起睡到中午嗎", "放假就是要陪貓的意思吧"]);
+  else line = rand(["這天空空的，再點一下就能新增行程喵", "什麼都還沒排，要不要排個罐罐日？", `${d.getMonth()+1}月${d.getDate()}日，記下來了`]);
+  say(line, "bounce");
+}
+function catOnAdd(e){
+  say(rand([`記好了！「${e.title}」我會幫你盯著`, "收到喵，我用肉球蓋章了", `「${e.title}」…聽起來可以帶我去嗎？`]), "spin", true);
+  const [x,y] = catCenter(); burst(x, y, "paw", 5);
+  setTimeout(() => peekNow(rand(["我也記住了！", "要帶我去嗎？", "（偷看）"])), 900);
+}
+
+/* tap / stroke / long-press */
+(() => {
+  let down = false, sx = 0, sy = 0, lx = 0, ly = 0, travel = 0, t0 = 0, lp = null, petted = false, lastHeart = 0;
+  cat.addEventListener("pointerdown", e => {
+    if (e.target.closest("#treatBtn")) return;
+    down = true; petted = false; travel = 0; t0 = Date.now(); sx = lx = e.clientX; sy = ly = e.clientY;
+    try { cat.setPointerCapture(e.pointerId); } catch {}
+    lp = setTimeout(() => { if (down && travel < 12) { down = false; nextPhoto(); } }, 650);
+  });
+  cat.addEventListener("pointermove", e => {
+    if (!down) return;
+    travel += Math.hypot(e.clientX - lx, e.clientY - ly); lx = e.clientX; ly = e.clientY;
+    if (travel > 12) clearTimeout(lp);
+    if (travel > 90 && Date.now() - lastHeart > 260) {
+      lastHeart = Date.now(); burst(e.clientX, e.clientY - 20, "heart", 1);
+      cat.classList.add("blushing");
+      if (!petted) { petted = true; bump("p");
+        say(isSleepy() ? "嗯…（被摸著繼續睡）" : rand(["呼嚕呼嚕呼嚕～", "再左邊一點…對，就是那裡", "咕嚕咕嚕…好舒服喵", "不要停！"]), "purr", true); }
+    }
+  });
+  const end = () => {
+    if (!down) return; down = false; clearTimeout(lp);
+    setTimeout(() => cat.classList.remove("blushing"), 1200);
+    if (!petted && travel < 12 && Date.now() - t0 < 600) tapCat();
+  };
+  cat.addEventListener("pointerup", end); cat.addEventListener("pointercancel", () => { down = false; clearTimeout(lp); });
+  cat.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); tapCat(); } });
+})();
+let taps = [];
+function tapCat(){
+  const now = Date.now(); taps = taps.filter(t => now - t < 2500); taps.push(now);
+  const [x,y] = catCenter();
+  if (isSleepy() && cat.classList.contains("sleep")) {
+    cat.classList.remove("sleep"); say(rand(["喵…？誰吵醒我…", "（睜一隻眼）…幹嘛啦", "半夜了耶，你也快睡"]), "wiggle");
+    setTimeout(() => { if (isSleepy() && Date.now() - lastTalk > 8000) cat.classList.add("sleep"); }, 15000);
+    return;
+  }
+  if (taps.length >= 5) { taps = []; say(rand(["哈！不要一直戳我啦！", "（尾巴甩甩）我生氣了喔", "再戳就咬你喔～"]), "wiggle"); return; }
+  burst(x, y, "heart", 2);
+  const c = curCat();
+  say(Math.random() < .6 ? rand(c.lines) : rand([`${c.name}在這裡喵！`, "喵～？", "你叫我嗎", "我餓了（每次都是）", "要排行程嗎？我幫你看著", "喵嗚！"]), rand(["bounce","wiggle"]));
+}
+function setCat(id, quiet){
+  S.settings.cur = id; S.settings.auto = false; Store.saveSettings(); renderCat();
+  if ($("setSheet").classList.contains("on")) renderRoster();
+  if (!quiet) { const c = byId(id); say(`換${c.name}來陪你！${rand(c.lines)}`, "spin", true); }
+}
+function nextPhoto(){
+  const i = CATS.indexOf(curCat());
+  setCat(CATS[(i + 1) % CATS.length].id);
+}
+$("treatBtn").addEventListener("click", e => {
+  e.stopPropagation();
+  const r = e.currentTarget.getBoundingClientRect(), [cx, cy] = catCenter();
+  const f = document.createElementNS("http://www.w3.org/2000/svg","svg");
+  f.setAttribute("viewBox","0 0 24 24"); f.setAttribute("class","fish-fly"); f.setAttribute("fill","#e39a5f");
+  f.innerHTML = '<path d="M3 12c3-4.5 8-6 12.5-3.2L20 6v12l-4.5-2.8C11 18 6 16.5 3 12z"/>';
+  f.style.left = (r.left + 4) + "px"; f.style.top = (r.top + 4) + "px";
+  document.body.appendChild(f);
+  requestAnimationFrame(() => { f.style.transform = `translate(${cx - r.left - 17}px, ${cy - r.top + 14}px) scale(.5)`; f.style.opacity = "0"; });
+  setTimeout(() => f.remove(), 800);
+  const t = bump("t");
+  cat.classList.remove("sleep");
+  setTimeout(() => {
+    burst(cx, cy, "heart", 3);
+    say(t % 10 === 0 ? `${catName()}的第 ${t} 條小魚乾！你是最好的奴才` : rand(["好吃！再一條！", "咔滋咔滋…", "嗯～是鮪魚口味", "這個我可以每天吃", "（吃完立刻看著你）"]), "bounce", true);
+  }, 480);
+});
+
+/* idle chatter & sleep */
+setInterval(() => {
+  if (!document.hidden && $("scrim").hidden) {
+    if (isSleepy()) { if (Date.now() - lastTalk > 20000) cat.classList.add("sleep"); return; }
+    cat.classList.remove("sleep");
+    if (Date.now() - lastTalk > 45000) {
+      const up = [...S.events.values()].filter(e => !e.done && e.date >= ymd(new Date())).sort((a,b) => (a.date+a.time).localeCompare(b.date+b.time))[0];
+      say(up && Math.random() < .5 ? `提醒你，接下來是 ${parseYmd(up.date).getMonth()+1}/${parseYmd(up.date).getDate()}「${up.title}」` : rand(["（打哈欠）", "（舔爪子）", "好無聊…摸我一下？", "伸懶腰～～", "窗外有鳥！"]), "wiggle");
+    }
+  }
+}, 5000);
+
+/* ---------- cat roster ---------- */
+$("setBtn").onclick = () => { renderRoster(); openSheet("setSheet"); };
+$("setDone").onclick = () => { closeSheets(); say(`${catName()}準備好了喵！`, "bounce", true); };
+$("autoBtn").onclick = () => {
+  S.settings.auto = !S.settings.auto;
+  if (!S.settings.auto) S.settings.cur = dutyCat().id;
+  Store.saveSettings(); renderCat(); renderRoster();
+};
+function renderRoster(){
+  const wrap = $("roster"), c = curCat(); wrap.innerHTML = "";
+  $("autoBtn").setAttribute("aria-pressed", String(!!S.settings.auto));
+  for (const k of CATS) {
+    const b = document.createElement("button"); b.type = "button"; b.className = "mate";
+    b.setAttribute("aria-pressed", String(k.id === c.id));
+    const av = document.createElement("span"); av.className = "av"; av.style.borderColor = k.id === c.id ? "" : `var(--c-${k.ear})`;
+    const im = new Image(); im.src = `cats/${k.img || k.id + "-v2"}.jpg`; im.alt = ""; av.appendChild(im);
+    const nm = document.createElement("span"); nm.textContent = k.name;
+    b.append(av, nm); b.onclick = () => setCat(k.id, true);
+    wrap.appendChild(b);
+  }
+  $("trait").textContent = `${S.settings.auto ? "今天值班" : "現在陪你"}：${c.name}，${c.trait}`;
+  const st = (S.settings.stats || {})[c.id] || {};
+  $("stPets").textContent = st.p || 0; $("stPetsL").textContent = `摸${c.name}的次數`;
+  $("stTreats").textContent = st.t || 0; $("stDone").textContent = S.settings.done || 0;
+}
+function updateHint(){
+  $("storeHint").textContent = S.mode === "cloud"
+    ? "行程存在你的帳號裡，只有你看得到。"
+    : "目前行程存在這台裝置的瀏覽器裡，清除瀏覽資料會一起清掉。";
+  renderAgenda();
+}
+let toastT = null;
+function toast(t){ const el = $("toast"); el.textContent = t; el.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove("on"), 2200); }
+
+/* ---------- cut-out cats on screen ---------- */
+const SITTERS = ["yuanyuan", "mochi", "duoduo", "niuniu", "qiuqiu", "yuki", "pudding"];
+const PEEKERS = ["wanwan", "coco", "miling", "pudding", "yuki", "qq"];
+const cutSrc = id => `cutouts/${id}.png`;
+const SVGNS = "http://www.w3.org/2000/svg";
+/* each month has its own cat sitting next to the month title */
+function renderMonthCat(y, m, animateIn){
+  const el = $("mCat"), c = CATS[((y * 12 + m) % CATS.length + CATS.length) % CATS.length];
+  if (el.dataset.id === c.id) return;
+  el.dataset.id = c.id; el.src = `cutouts/${c.id}.png`; el.alt = `${m + 1} 月的貓：${c.name}，點牠看看`;
+  if (animateIn) hop(el);
+}
+$("mCat").addEventListener("click", e => { e.stopPropagation(); tapSitter(e.currentTarget); });
+function hop(el, cls = "hop"){ el.classList.remove("hop", "shy"); void el.offsetWidth; el.classList.add(cls); setTimeout(() => el.classList.remove(cls), 760); }
+function miniSay(el, text){
+  const r = el.getBoundingClientRect(), b = document.createElement("div");
+  const below = r.top < 90;
+  b.className = "mbubble" + (below ? " below" : ""); b.textContent = text;
+  b.style.left = Math.min(window.innerWidth - 70, Math.max(70, r.left + r.width / 2)) + "px";
+  b.style.top = (below ? r.bottom + 6 : r.top + 6) + "px";
+  $("fx").appendChild(b); setTimeout(() => b.remove(), 2500);
+}
+const sitterTaps = {};
+function tapSitter(el){
+  const c = byId(el.dataset.id), n = (sitterTaps[c.id] = (sitterTaps[c.id] || 0) + 1);
+  if (n % 4 === 0) { hop(el, "shy"); miniSay(el, `${c.name}害羞了，不要一直看我`); return; }
+  hop(el); bump("p", c.id);
+  const r = el.getBoundingClientRect(); burst(r.left + r.width / 2, r.top + 10, "heart", 2);
+  miniSay(el, rand(c.lines));
+}
+function sitterReact(text){
+  const all = [...document.querySelectorAll(".sitter")]; if (!all.length) return;
+  const el = rand(all); hop(el); if (text) miniSay(el, text);
+}
+
+/* peekaboo from the bottom edge */
+const peek = $("peek"); let peekT = null, peekId = null;
+function peekNow(line){
+  if (!$("scrim").hidden || peek.classList.contains("up") || parading) return;
+  peekId = rand(PEEKERS.filter(id => id !== curCat().id));
+  peek.src = cutSrc(peekId); peek.alt = `${byId(peekId).name}在偷看，點牠抓住牠`;
+  peek.style.left = (36 + Math.random() * 28) + "%";
+  peek.classList.remove("caught"); peek.hidden = false;
+  requestAnimationFrame(() => requestAnimationFrame(() => peek.classList.add("up")));
+  if (line) setTimeout(() => miniSay(peek, line), 550);
+  clearTimeout(peekT); peekT = setTimeout(hidePeek, line ? 3400 : 2600);
+}
+function hidePeek(){ peek.classList.remove("up", "caught"); setTimeout(() => { if (!peek.classList.contains("up")) peek.hidden = true; }, 650); }
+peek.addEventListener("click", () => {
+  if (!peek.classList.contains("up") || peek.classList.contains("caught")) return;
+  clearTimeout(peekT); peek.classList.add("caught");
+  S.settings.caught = (S.settings.caught || 0) + 1; Store.saveSettings();
+  const c = byId(peekId); bump("p", c.id);
+  const r = peek.getBoundingClientRect(); burst(r.left + r.width / 2, r.top + 30, "heart", 4);
+  miniSay(peek, rand([`被抓到了！我是${c.name}`, "躲貓貓輸了喵", "你怎麼發現我的", "再玩一次！"]));
+  toast(`抓到${c.name}了！總共抓到 ${S.settings.caught} 次`);
+  peekT = setTimeout(hidePeek, 1700);
+});
+let nextPeek = Date.now() + 10000;
+setInterval(() => {
+  if (document.hidden || !$("scrim").hidden || isSleepy()) return;
+  if (Date.now() > nextPeek) { nextPeek = Date.now() + 16000 + Math.random() * 16000; peekNow(); }
+}, 2000);
+
+/* all 11 cats parade across the bottom */
+let parading = false;
+function parade(){
+  if (parading) return; parading = true; hidePeek();
+  const box = $("parade"); box.innerHTML = "";
+  const ids = CATS.map(c => c.id).sort(() => Math.random() - .5);
+  ids.forEach((id, i) => {
+    const im = new Image(); im.src = cutSrc(id); im.alt = ""; im.draggable = false;
+    im.style.setProperty("--delay", (i * 0.55) + "s"); im.style.setProperty("--dur", "6.5s");
+    im.addEventListener("click", () => { miniSay(im, byId(id).name + "！"); const r = im.getBoundingClientRect(); burst(r.left + r.width / 2, r.top, "heart", 2); });
+    box.appendChild(im);
+  });
+  say("全員集合！11 隻一起出巡喵～", "bounce", true);
+  setTimeout(() => { box.innerHTML = ""; parading = false; }, (ids.length * 0.55 + 6.9) * 1000);
+}
+$("paradeBtn").onclick = () => { closeSheets(); setTimeout(parade, 350); };
+
+/* tap empty space: a cat toy appears and the nearest cat pounces */
+$("app").addEventListener("click", e => {
+  if (e.target.closest("button,.ev,.cat,.sitter,.bubble,input,.cal,.empty,.note")) return;
+  const w = document.createElementNS(SVGNS, "svg"); w.setAttribute("viewBox", "0 0 24 24"); w.setAttribute("class", "wand");
+  w.innerHTML = '<path d="M3 21L13 11" stroke="#b9a2c9" stroke-width="1.6" stroke-linecap="round"/><path d="M13 11c2-5 6-8 9-8-1 3-3 7-8 9z" fill="#f2a7b8"/><path d="M14.5 9.5c2.5-2 4.5-4 6-5.5" stroke="#fff" stroke-width=".8" fill="none"/>';
+  w.style.left = e.clientX + "px"; w.style.top = e.clientY + "px";
+  $("fx").appendChild(w); setTimeout(() => w.remove(), 950);
+  const all = [...document.querySelectorAll(".sitter")]; if (!all.length) return;
+  let best = all[0], bd = Infinity;
+  for (const s of all) { const r = s.getBoundingClientRect(); const d = Math.hypot(r.left + r.width / 2 - e.clientX, r.top + r.height / 2 - e.clientY); if (d < bd) { bd = d; best = s; } }
+  hop(best); miniSay(best, rand(["那是什麼！", "（盯）", "逗貓棒！我的！", "撲過去了喔"]));
+});
+
+/* ---------- boot ---------- */
+render(); renderCat();
+if (isSleepy()) cat.classList.add("sleep");
+setTimeout(greet, 700);
+connect();
+})();
+</script>
+
+</body>
+</html>
