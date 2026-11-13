@@ -61,6 +61,15 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
 .today-btn{padding:6px 12px;border-radius:999px;background:var(--accent-soft);color:var(--accent-ink);font-size:13px;font-weight:500}
 
 /* grid */
+.tabs{display:flex;gap:4px;padding:4px;margin:0 0 12px;background:var(--surface-2);border-radius:999px}
+.tabs button{flex:1;padding:8px 0;border-radius:999px;font-size:14px;font-weight:500;color:var(--ink-2);transition:background .2s,color .2s,box-shadow .2s}
+.tabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 2px 8px rgba(122,61,80,.10)}
+.tabs small{font-size:11px;font-weight:400;color:var(--ink-3);margin-left:4px}
+.status{color:var(--ink-2);font-size:14px;line-height:1.6;padding:16px;border-radius:16px;background:var(--surface);display:flex;flex-direction:column;gap:10px;align-items:flex-start}
+.status .btn{flex:none;padding:9px 16px;font-size:14px}
+a.body{color:inherit;text-decoration:none}
+.ev .ext{flex:none;font-size:11px;color:var(--ink-2);background:var(--surface-2);border-radius:8px;padding:4px 8px;white-space:nowrap}
+.formerr{color:#c0566d;font-size:13px;line-height:1.5;margin:0 0 10px}
 .cal{background:var(--surface);border-radius:var(--r);padding:8px 6px 6px;box-shadow:var(--shadow);touch-action:pan-y}
 .wk,.grid{display:grid;grid-template-columns:repeat(7,1fr)}
 .wk span{text-align:center;font-size:11px;color:var(--ink-2);padding-bottom:6px;letter-spacing:.08em}
@@ -231,6 +240,28 @@ textarea.inp{min-height:64px;resize:vertical}
 .stat span{font-size:11px;color:var(--ink-2)}
 @media (prefers-reduced-motion: reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 @media (max-height:640px){.day{min-height:46px}.month h1{font-size:24px}}
+/* iPhone Duo unfolded, portrait (and other wide screens): one wider column, roomier cells */
+@media (min-width:600px){
+  .app{max-width:760px}
+  .dock-in{max-width:728px}
+  .day{min-height:70px;padding:6px 3px 4px}
+  .day .n{width:28px;height:28px;font-size:15px}
+  .chip{font-size:11.5px;line-height:17px;padding:0 5px}
+  .month h1{font-size:32px}
+  .mcat{height:62px;max-width:92px}
+  .ev{padding:14px 16px}
+}
+/* iPhone Duo unfolded, landscape: calendar on one half, the day's agenda on the other, the fold in the gap */
+@media (min-width:860px) and (min-aspect-ratio:5/4){
+  .app{max-width:1180px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:48px;align-items:start}
+  .top,.tabs{grid-column:1 / -1}
+  .cal{grid-column:1;grid-row:3}
+  .agenda{grid-column:2;grid-row:3;padding-top:0;position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px)}
+  .ag-head{padding-top:6px}
+  .dock-in{max-width:1148px}
+  .list{max-height:calc(100vh - var(--dock-h) - 120px);overflow-y:auto;padding-bottom:16px}
+  .wide-gap{display:block}
+}
 </style>
 
 <div class="app" id="app">
@@ -241,6 +272,11 @@ textarea.inp{min-height:64px;resize:vertical}
     <button class="icon-btn" id="nextBtn" aria-label="下個月"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg></button>
     <button class="icon-btn" id="setBtn" aria-label="貓咪設定"><svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="12" cy="15.5" rx="4.6" ry="3.8"/><ellipse cx="6" cy="10" rx="2" ry="2.6"/><ellipse cx="18" cy="10" rx="2" ry="2.6"/><ellipse cx="9.3" cy="5.8" rx="1.9" ry="2.5"/><ellipse cx="14.7" cy="5.8" rx="1.9" ry="2.5"/></svg></button>
   </header>
+
+  <div class="tabs" id="tabs" role="tablist" aria-label="行事曆" hidden>
+    <button type="button" role="tab" id="tabPersonal" data-tab="personal" aria-selected="true">個人</button>
+    <button type="button" role="tab" id="tabWork" data-tab="work" aria-selected="false">工作<small>Google</small></button>
+  </div>
 
   <section class="cal" id="cal">
     <div class="wk"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
@@ -281,6 +317,8 @@ textarea.inp{min-height:64px;resize:vertical}
   </div>
   <div class="field"><span class="lbl">顏色</span><div class="swatches" id="swatches"></div></div>
   <div class="field"><label for="fNote">備註</label><textarea class="inp" id="fNote" maxlength="300" placeholder="地點、要帶的東西…"></textarea></div>
+  <p class="hint" id="evHint" hidden></p>
+  <p class="formerr" id="evErr" hidden></p>
   <div class="actions">
     <button type="button" class="btn danger" id="delBtn" hidden>刪除</button>
     <button type="button" class="btn ghost" id="cancelBtn">取消</button>
@@ -327,7 +365,11 @@ const S = {
   settings: { auto: true, cur: "qq", stats: {}, done: 0 },
   mode: "local",
   col: null,
+  tab: "personal",           // "personal" (this page's own store) or "work" (Google Calendar)
+  work: new Map(), workState: "idle", workErr: null, workKey: "",
 };
+let MCP = null;
+const GCAL = "Google Calendar";
 
 /* ---------- local storage helpers ---------- */
 const LS = {
@@ -364,6 +406,13 @@ const Store = {
   },
 };
 
+async function connectGoogle(){
+  if (!window.claude || typeof window.claude.use !== "function") return;
+  try { MCP = await claude.use("mcp"); } catch { MCP = null; }
+  if (!MCP) return;
+  $("tabs").hidden = false;
+  if (LS.get("mc_tab", "personal") === "work") setTab("work", true);
+}
 async function connect(){
   if (!window.claude || typeof window.claude.use !== "function") return updateHint();
   try {
@@ -396,11 +445,13 @@ async function connect(){
 
 /* ---------- calendar render ---------- */
 function eventsOn(day){
-  return [...S.events.values()].filter(e => e.date === day)
+  const src = S.tab === "work" ? S.work : S.events;
+  return [...src.values()].filter(e => e.date === day || (e.days && e.days.includes(day)))
     .sort((a,b) => (a.time||"").localeCompare(b.time||"") || (a.created||0)-(b.created||0));
 }
 function render(dir){
   const v = S.view, y = v.getFullYear(), m = v.getMonth();
+  if (S.tab === "work" && MCP && S.workKey !== visibleRange().join("|")) loadWork();
   $("mTitle").textContent = `${m+1} 月`;
   $("mSub").textContent = `${y} · 民國${y-1911}年`;
   renderMonthCat(y, m, !!dir);
@@ -417,7 +468,7 @@ function render(dir){
     b.setAttribute("aria-label", `${d.getMonth()+1}月${d.getDate()}日，${evs.length} 個行程`);
     const n = document.createElement("span"); n.className = "n"; n.textContent = d.getDate();
     const chips = document.createElement("span"); chips.className = "chips";
-    const shown = evs.length > 3 ? 2 : 3;
+    const cap = window.innerWidth >= 600 ? 4 : 3, shown = evs.length > cap ? cap - 1 : cap;
     evs.slice(0, shown).forEach(e => {
       const c = document.createElement("span"); c.className = "chip" + (e.done ? " done" : "");
       c.style.background = `var(--c-${e.color||"pink"})`; c.textContent = e.title; chips.appendChild(c);
@@ -435,26 +486,47 @@ function renderAgenda(){
   $("agTitle").textContent = `${d.getMonth()+1}月${d.getDate()}日`;
   $("agSub").textContent = `星期${WD[d.getDay()]}` + (evs.length ? ` · ${evs.length} 件事` : "");
   const list = $("list"); list.innerHTML = "";
-  if (!evs.length) {
+  const work = S.tab === "work";
+  if (work && (S.workState === "loading" && !S.work.size || S.workState === "error")) {
+    const st = document.createElement("div"); st.className = "status";
+    const msg = document.createElement("span");
+    if (S.workState === "loading") msg.textContent = "正在讀取你的 Google 日曆…";
+    else {
+      msg.textContent = S.workErr.text;
+      if (S.workErr.action) { const b = document.createElement("button"); b.type = "button"; b.className = "btn primary"; b.textContent = S.workErr.action; b.onclick = () => { S.workKey = ""; loadWork(); }; st.append(msg, b); }
+    }
+    if (!st.childNodes.length) st.appendChild(msg);
+    list.appendChild(st);
+  } else if (!evs.length) {
     const p = document.createElement("button"); p.type = "button"; p.className = "empty";
-    p.innerHTML = S.events.size ? "這天還沒有安排。<b>點這裡新增行程</b>" : "還沒有任何行程。<b>點這裡新增第一個吧！</b>";
+    p.innerHTML = work ? "這天 Google 日曆上沒有活動。<b>點這裡新增工作行程</b>" : S.events.size ? "這天還沒有安排。<b>點這裡新增行程</b>" : "還沒有任何行程。<b>點這裡新增第一個吧！</b>";
     p.onclick = () => openEvent(null);
     list.appendChild(p);
   }
   for (const e of evs) {
     const row = document.createElement("div"); row.className = "ev" + (e.done ? " done" : "");
     const tag = document.createElement("span"); tag.className = "tag"; tag.style.background = `var(--c-${e.color||"pink"})`;
-    const body = document.createElement("button"); body.className = "body"; body.style.textAlign = "left";
+    const readOnly = e.work && !e.mine;
+    const body = document.createElement(readOnly && e.link ? "a" : "button"); body.className = "body"; body.style.textAlign = "left";
     const t = document.createElement("div"); t.className = "t"; t.textContent = e.title;
-    const m = document.createElement("div"); m.className = "m"; m.textContent = (e.time || "整天") + (e.note ? ` · ${e.note}` : "");
-    body.append(t, m); body.onclick = () => openEvent(e);
-    const c = document.createElement("button"); c.className = "check"; c.setAttribute("aria-label", e.done ? "標為未完成" : "標為完成");
-    c.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg>';
-    c.onclick = ev => toggleDone(e, ev);
-    row.append(tag, body, c); list.appendChild(row);
+    const m = document.createElement("div"); m.className = "m";
+    const when = e.time ? e.time + (e.endTime ? `–${e.endTime}` : "") : "整天";
+    m.textContent = when + (e.location ? ` · ${e.location}` : "") + (e.note ? ` · ${e.note}` : "");
+    body.append(t, m);
+    if (readOnly && e.link) { body.href = e.link; body.target = "_blank"; body.rel = "noopener"; }
+    else if (readOnly) body.onclick = () => toast("這是別人建立的活動，請到 Google 日曆查看");
+    else body.onclick = () => openEvent(e);
+    row.append(tag, body);
+    if (readOnly) { const x = document.createElement("span"); x.className = "ext"; x.textContent = "別人建立"; row.appendChild(x); }
+    else if (!e.work) {
+      const c = document.createElement("button"); c.className = "check"; c.setAttribute("aria-label", e.done ? "標為未完成" : "標為完成");
+      c.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg>';
+      c.onclick = ev => toggleDone(e, ev); row.appendChild(c);
+    }
+    list.appendChild(row);
   }
   const note = document.createElement("div"); note.className = "note";
-  note.textContent = S.mode === "cloud" ? "已同步到你的帳號" : "資料存在這台裝置的瀏覽器裡";
+  note.textContent = work ? "工作行程直接存在你公司帳號的 Google 日曆，提醒由 Google 通知" : S.mode === "cloud" ? "個人行程存在你的 claude.ai 帳號，不會進 Google" : "資料存在這台裝置的瀏覽器裡";
   list.appendChild(note);
 }
 
@@ -511,7 +583,11 @@ function closeSheets(){
 $("scrim").onclick = closeSheets;
 function openEvent(e){
   editing = e;
-  $("evSheetTitle").textContent = e ? "編輯行程" : "新增行程";
+  const work = S.tab === "work";
+  $("evSheetTitle").textContent = (e ? "編輯" : "新增") + (work ? "工作行程" : "行程");
+  $("evHint").hidden = !work;
+  $("evHint").textContent = "會存到你公司帳號的 Google 日曆，並依照 Google 日曆的預設時間提醒你。";
+  $("evErr").hidden = true;
   $("fTitle").value = e ? e.title : "";
   $("fDate").value = e ? e.date : S.sel;
   $("fTime").value = e ? (e.time || "") : "";
@@ -526,6 +602,7 @@ $("cancelBtn").onclick = closeSheets;
 $("evSheet").addEventListener("submit", ev => {
   ev.preventDefault();
   const title = $("fTitle").value.trim(); if (!title) return;
+  if (S.tab === "work") { saveWork(editing, { title, date: $("fDate").value || S.sel, time: $("fTime").value || "", note: $("fNote").value.trim(), color: pickedColor }); return; }
   const isNew = !editing;
   const e = { ...(editing || { id: "ev_" + Date.now().toString(36) + Math.random().toString(36).slice(2,6), created: Date.now(), done: false }),
     title, date: $("fDate").value || S.sel, time: $("fTime").value || "", note: $("fNote").value.trim(), color: pickedColor };
@@ -539,6 +616,7 @@ $("delBtn").onclick = () => {
   if (!editing) return;
   if (!delArmed) { delArmed = true; $("delBtn").textContent = "確定刪除？"; setTimeout(() => { delArmed = false; $("delBtn").textContent = "刪除"; }, 2500); return; }
   delArmed = false; $("delBtn").textContent = "刪除";
+  if (S.tab === "work") { delWork(editing); return; }
   Store.delEvent(editing.id); closeSheets(); say(rand(["好喔，劃掉了喵", "那就不用去囉～", "刪掉了，輕鬆一點"]), "wiggle");
 };
 function toggleDone(e, ev){
@@ -551,6 +629,139 @@ function toggleDone(e, ev){
     say(left ? rand([`完成一件！還剩 ${left} 件喵`, "好棒！摸摸頭", `做得好～再 ${left} 件就收工`]) : rand(["今天的事都做完了！可以陪我玩了吧", "全部完成！賞你一個呼嚕", "收工！來躺貓肚子吧"]), "spin", true);
     if (left) sitterReact(rand(["讚喔！", "再接再厲喵", "（拍手）"])); else setTimeout(parade, 700);
   }
+}
+
+/* ---------- work tab: Google Calendar ---------- */
+const G2C = { "1": "lav", "2": "mint", "3": "lav", "4": "pink", "5": "butter", "6": "peach", "7": "sky", "8": "sky", "9": "sky", "10": "mint", "11": "pink" };
+const C2G = { pink: "4", peach: "6", butter: "5", mint: "2", sky: "7", lav: "1" };
+const addDays = (k, n) => { const d = parseYmd(k); return ymd(new Date(d.getFullYear(), d.getMonth(), d.getDate() + n)); };
+function visibleRange(){
+  const v = S.view, start = new Date(v.getFullYear(), v.getMonth(), 1 - v.getDay());
+  const cells = Math.ceil((v.getDay() + new Date(v.getFullYear(), v.getMonth() + 1, 0).getDate()) / 7) * 7;
+  return [ymd(start), addDays(ymd(start), cells)];
+}
+function setTab(t, quiet){
+  if (t === "work" && !MCP) t = "personal";
+  S.tab = t; LS.set("mc_tab", t);
+  document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === t)));
+  if (t === "work") S.workKey = "";
+  render();
+  if (!quiet) say(t === "work" ? rand(["工作模式！今天也要準時下班喵", "上班囉，我幫你盯著 Google 日曆", "工作的事交給你，罐罐交給我"]) : rand(["回到私人時間～", "這裡是我們的秘密行程", "下班了嗎？來摸我"]), "bounce");
+}
+$("tabs").addEventListener("click", e => { const b = e.target.closest("button[data-tab]"); if (b && b.dataset.tab !== S.tab) setTab(b.dataset.tab); });
+function normG(g){
+  if (!g || g.status === "cancelled") return null;
+  const allDay = !!(g.start && g.start.date);
+  const sd = allDay ? g.start.date : String((g.start && g.start.dateTime) || "").slice(0, 10);
+  if (!/^\d{4}-\d\d-\d\d$/.test(sd)) return null;
+  const ed = allDay ? ((g.end && g.end.date) || addDays(sd, 1)) : String((g.end && g.end.dateTime) || "").slice(0, 10) || sd;
+  const days = [];
+  for (let k = sd; allDay ? k < ed : k <= ed; k = addDays(k, 1)) { days.push(k); if (days.length > 62) break; }
+  if (!days.length) days.push(sd);
+  const mine = (g.organizer && g.organizer.self) || (g.creator && g.creator.self) || (!g.organizer && !g.creator);
+  return {
+    id: g.id, work: true, mine: !!mine, title: g.summary || "（無標題）", date: sd, days, allDay,
+    time: allDay ? "" : String(g.start.dateTime).slice(11, 16),
+    endTime: allDay ? "" : String((g.end && g.end.dateTime) || "").slice(11, 16),
+    note: String(g.description || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 120),
+    location: g.location || "", link: g.htmlLink || "", color: G2C[g.colorId] || "sky",
+  };
+}
+function gError(err){
+  const code = err && err.code;
+  switch (code) {
+    case "needs_reauth": return { text: "Google 日曆的連線過期了。請到 claude.ai 的「設定 → 連接器」重新連接 Google Calendar，再回來重新整理。" };
+    case "server_not_connected": case "server_not_found": return { text: "還沒連接 Google 日曆。請到 claude.ai 的「設定 → 連接器」加入 Google Calendar，再回來重新整理。" };
+    case "selection_required": return { text: "你連接了不只一個 Google 日曆。請在 claude.ai 跳出的視窗選一個，再按重新讀取。", action: "重新讀取" };
+    case "not_in_manifest": case "approval_required": case "consent_required": return { text: "需要你允許這個網頁使用 Google 日曆，工作分頁才能顯示。", action: "允許並讀取" };
+    case "blocked_by_policy": return { text: "公司的設定不允許這個網頁使用 Google 日曆。" };
+    case "not_granted": case "capability_disabled": case "capability_removed": return { text: "這裡無法使用 Google 日曆。請在 claude.ai 打開這個網頁。" };
+    case "tool_error": return { text: "Google 日曆回覆了錯誤：" + String((err && err.message) || "").slice(0, 120), action: "重新讀取" };
+    default: return { text: "暫時連不上 Google 日曆，請稍後再試。", action: "重新讀取" };
+  }
+}
+let workSeq = 0;
+async function loadWork(){
+  if (!MCP) return;
+  const [a, b] = visibleRange(), seq = ++workSeq;
+  S.workKey = a + "|" + b; S.workState = "loading"; S.workErr = null;
+  if (S.tab === "work") renderAgenda();
+  const fetchAll = async () => {
+    const out = new Map(); let token = null, pages = 0;
+    do {
+      const input = { startTime: a + "T00:00:00", endTime: b + "T00:00:00", orderBy: "startTime", pageSize: 250 };
+      if (token) input.pageToken = token;
+      const r = await MCP.callTool(GCAL, "list_events", input, { cache: false });
+      const pl = (r && r.payload) || {};
+      for (const g of (pl.events || [])) { const e = normG(g); if (e) out.set(e.id, e); }
+      token = pl.nextPageToken; pages++;
+    } while (token && pages < 4);
+    return out;
+  };
+  try {
+    let out;
+    try { out = await fetchAll(); }
+    catch (err) {
+      if (!(err && err.retryable)) throw err;
+      await new Promise(r => setTimeout(r, Math.min(60000, err.retryAfterMs || 1200 + Math.random() * 1500)));
+      if (seq !== workSeq) return;
+      out = await fetchAll();
+    }
+    if (seq !== workSeq) return;
+    S.work = out; S.workState = "ready";
+  } catch (err) {
+    if (seq !== workSeq) return;
+    S.workState = "error"; S.workErr = gError(err);
+    if (["needs_reauth", "server_not_connected", "server_not_found", "not_in_manifest", "approval_required", "consent_required", "blocked_by_policy"].includes(err && err.code)) S.work = new Map();
+  }
+  if (S.tab === "work") render();
+}
+function sheetBusy(on){
+  const sb = $("evSheet").querySelector('button[type="submit"]');
+  sb.disabled = on; $("delBtn").disabled = on; sb.textContent = on ? "儲存中…" : "儲存";
+}
+function formError(t){ $("evErr").textContent = t; $("evErr").hidden = false; }
+const AMBIGUOUS = ["server_unavailable", "upstream_error", "cancelled", "rate_limited"];
+async function saveWork(old, f){
+  if (!MCP) return;
+  const allDay = !f.time;
+  let startTime, endTime;
+  if (allDay) { startTime = f.date + "T00:00:00"; endTime = addDays(f.date, 1) + "T00:00:00"; }
+  else {
+    let mins = 60;
+    if (old && !old.allDay && old.time && old.endTime && old.days && old.days.length === 1) {
+      const [h1, m1] = old.time.split(":").map(Number), [h2, m2] = old.endTime.split(":").map(Number);
+      const diff = (h2 * 60 + m2) - (h1 * 60 + m1); if (diff > 0) mins = diff;
+    }
+    const [h, mm] = f.time.split(":").map(Number), d = parseYmd(f.date);
+    const e = new Date(d.getFullYear(), d.getMonth(), d.getDate(), h, mm + mins);
+    startTime = f.date + "T" + f.time + ":00";
+    endTime = ymd(e) + "T" + pad(e.getHours()) + ":" + pad(e.getMinutes()) + ":00";
+  }
+  const input = { summary: f.title, startTime, endTime, allDay, description: f.note, colorId: C2G[f.color] || "7" };
+  sheetBusy(true); $("evErr").hidden = true;
+  try {
+    if (old) await MCP.callTool(GCAL, "update_event", { eventId: old.id, ...input });
+    else await MCP.callTool(GCAL, "create_event", { ...input, useDefaultReminders: true });
+    closeSheets(); toast(old ? "已更新 Google 日曆" : "已存到 Google 日曆");
+    if (!old) catOnAdd({ title: f.title });
+  } catch (err) {
+    if (AMBIGUOUS.includes(err && err.code)) { closeSheets(); toast("不確定有沒有存進 Google，已重新讀取，請確認一下"); }
+    else { sheetBusy(false); formError(gError(err).text); return; }
+  }
+  sheetBusy(false);
+  S.sel = f.date; const d = parseYmd(f.date); S.view = new Date(d.getFullYear(), d.getMonth(), 1);
+  S.workKey = ""; render();
+}
+async function delWork(e){
+  if (!MCP || !e) return;
+  sheetBusy(true); $("evErr").hidden = true;
+  try { await MCP.callTool(GCAL, "delete_event", { eventId: e.id }); closeSheets(); toast("已從 Google 日曆刪除"); say(rand(["好喔，劃掉了喵", "少一件工作，讚！"]), "wiggle"); }
+  catch (err) {
+    if (AMBIGUOUS.includes(err && err.code)) { closeSheets(); toast("不確定有沒有刪除，已重新讀取，請確認一下"); }
+    else { sheetBusy(false); formError(gError(err).text); return; }
+  }
+  sheetBusy(false); S.workKey = ""; render();
 }
 
 /* ---------- cat ---------- */
@@ -873,6 +1084,13 @@ $("app").addEventListener("click", e => {
   hop(best); miniSay(best, rand(["那是什麼！", "（盯）", "逗貓棒！我的！", "撲過去了喔"]));
 });
 
+/* ---------- fold / unfold / rotate: redraw once the size settles ---------- */
+let lastW = window.innerWidth, resizeT = null;
+window.addEventListener("resize", () => {
+  clearTimeout(resizeT);
+  resizeT = setTimeout(() => { const w = window.innerWidth; if ((w >= 600) !== (lastW >= 600)) render(); lastW = w; }, 150);
+});
+
 /* ---------- tab icon: a different cat every day ---------- */
 let faviconDay = null;
 function setDailyFavicon(){
@@ -900,6 +1118,7 @@ render(); renderCat();
 if (isSleepy()) cat.classList.add("sleep");
 setTimeout(greet, 700);
 connect();
+connectGoogle();
 })();
 </script>
 
