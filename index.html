@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Huninn&family=Noto+Sans+TC:wght@400;500;700&display=swap">
 <style>
-/* Layout: one-screen phone app — month grid on top, day agenda below, cat companion floating bottom-left, add button bottom-right */
+/* Layout: scrolling phone page — month grid on top, day agenda below, bottom dock with the cat on duty, its speech and the add button */
 :root{
   --bg:#f8f5f8;          /* blush-tinted paper */
   --surface:#ffffff;
@@ -36,6 +36,7 @@
   --font-display:"Huninn","Zen Maru Gothic","PingFang TC","Noto Sans TC",system-ui,sans-serif;
   --font-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
   --r:18px;
+  --dock-h:calc(76px + env(safe-area-inset-bottom,0px));
 }
 /* Deliberately one light pastel look in every theme: the user asked for soft, pale colours. */
 :root,:root[data-theme="dark"]{color-scheme:light}
@@ -74,6 +75,9 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
 .day.other .chip{opacity:.5}
 .more{font-size:9px;line-height:11px;color:var(--ink-2);text-align:center}
 .day.other .n{color:var(--ink-3)}
+.day{cursor:pointer;-webkit-tap-highlight-color:transparent}
+.day:active .n{background:var(--surface-2)}
+.day.sel:active .n{background:var(--accent)}
 .day.wkend:not(.other) .n{color:#d58a9c}
 .day.today .n{box-shadow:inset 0 0 0 1.5px var(--accent);color:var(--accent-ink)}
 .day.sel .n{background:var(--accent);color:#fff;box-shadow:none}
@@ -103,11 +107,11 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
 @keyframes hop{0%{transform:scaleX(var(--fx,1))}35%{transform:translateY(-22px) scaleX(var(--fx,1)) rotate(-4deg)}70%{transform:scale(calc(var(--fx,1)*1.07),.92)}100%{transform:scaleX(var(--fx,1))}}
 .sitter.shy{animation:shy .7s ease!important}
 @keyframes shy{30%{transform:scaleX(var(--fx,1)) translateY(6px) scaleY(.9)}60%{transform:scaleX(calc(var(--fx,1)*-1))}}
-.peek{position:fixed;left:50%;bottom:0;height:130px;width:auto;max-width:150px;z-index:4;cursor:pointer;transform:translate(-50%,105%);transition:transform .6s cubic-bezier(.3,1.4,.5,1);
+.peek{position:fixed;left:50%;bottom:var(--dock-h);height:130px;width:auto;max-width:150px;z-index:4;cursor:pointer;transform:translate(-50%,105%);transition:transform .6s cubic-bezier(.3,1.4,.5,1);
   filter:drop-shadow(0 -2px 8px rgba(74,66,80,.15));-webkit-user-drag:none;-webkit-touch-callout:none}
 .peek.up{transform:translate(-50%,36%)}
 .peek.caught{transform:translate(-50%,10%) rotate(-6deg)}
-.parade{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 2px);height:96px;pointer-events:none;z-index:9;overflow:hidden}
+.parade{position:fixed;left:0;right:0;bottom:calc(var(--dock-h) + 2px);height:96px;pointer-events:none;z-index:9;overflow:hidden}
 .parade img{position:absolute;bottom:0;left:0;height:84px;width:auto;max-width:120px;pointer-events:auto;filter:drop-shadow(0 4px 6px rgba(74,66,80,.2));
   animation:walk var(--dur,7s) linear var(--delay,0s) both}
 @keyframes walk{0%{transform:translateX(-140px) translateY(0)}10%{transform:translateX(calc(10vw - 140px)) translateY(-8px)}20%{transform:translateX(calc(20vw - 120px)) translateY(0)}30%{transform:translateX(calc(30vw - 110px)) translateY(-8px)}40%{transform:translateX(calc(40vw - 90px)) translateY(0)}50%{transform:translateX(calc(50vw - 70px)) translateY(-8px)}60%{transform:translateX(calc(60vw - 50px)) translateY(0)}70%{transform:translateX(calc(70vw - 30px)) translateY(-8px)}80%{transform:translateX(calc(80vw - 10px)) translateY(0)}90%{transform:translateX(calc(90vw + 10px)) translateY(-8px)}100%{transform:translateX(calc(100vw + 30px)) translateY(0)}}
@@ -118,7 +122,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
 .mbubble.below{transform:translate(-50%,0);animation-name:mpopb}
 @keyframes mpopb{0%{opacity:0;transform:translate(-50%,-10%) scale(.7)}10%{opacity:1;transform:translate(-50%,0) scale(1)}85%{opacity:1}100%{opacity:0;transform:translate(-50%,10%)}}
 @media (max-height:700px){.peek{height:110px}}
-.list{padding-block:10px calc(150px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px;-webkit-overflow-scrolling:touch}
+.list{padding-block:10px calc(var(--dock-h) + 28px);display:flex;flex-direction:column;gap:8px}
 .ev{display:flex;align-items:center;gap:12px;background:var(--surface);border-radius:16px;padding:12px 12px 12px 14px;text-align:left;width:100%}
 .ev .tag{flex:none;width:10px;height:10px;border-radius:50%}
 .ev .body{flex:1;min-width:0}
@@ -128,26 +132,31 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
 .check{flex:none;width:26px;height:26px;border-radius:50%;border:1.5px solid var(--ink-3);display:grid;place-items:center;color:transparent}
 .ev.done .check{background:var(--c-mint);border-color:var(--c-mint);color:#fff}
 .check svg{width:14px;height:14px}
-.empty{color:var(--ink-2);font-size:14px;padding:18px 6px;line-height:1.7}
+.empty{width:100%;text-align:left;color:var(--ink-2);font-size:14px;line-height:1.6;padding:16px;border:1.5px dashed var(--line);border-radius:16px;background:none}
+.empty:active{background:var(--surface-2)}
+.empty b{color:var(--accent-ink);font-weight:500}
 .note{font-size:11px;color:var(--ink-3);padding:4px 6px}
 
 /* fab */
-.fab{position:fixed;right:max(16px,calc(50vw - 224px),env(safe-area-inset-right,0px));bottom:calc(18px + env(safe-area-inset-bottom,0px));width:58px;height:58px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;box-shadow:0 8px 20px rgba(233,168,184,.55);z-index:5}
+.fab{flex:none;width:52px;height:52px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;box-shadow:0 6px 16px rgba(233,168,184,.5);transition:transform .15s}
 .fab svg{width:26px;height:26px}
 .fab:active{transform:scale(.94)}
 
 /* cat companion */
-.cat-zone{position:fixed;left:max(16px,calc(50vw - 224px),env(safe-area-inset-left,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:6;display:flex;align-items:flex-end;gap:10px;pointer-events:none}
-.cat{position:relative;width:86px;height:86px;pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab}
-.cat .ear{position:absolute;top:-9px;width:30px;height:30px;background:var(--ear,var(--c-pink));border-radius:6px 22px 4px 22px;z-index:0}
-.cat .ear.l{left:6px;transform:rotate(-12deg)}
-.cat .ear.r{right:6px;transform:scaleX(-1) rotate(-12deg)}
-.cat .face{position:relative;z-index:1;width:100%;height:100%;border-radius:50%;overflow:hidden;border:4px solid var(--ear,var(--c-pink));background:var(--surface);box-shadow:var(--shadow)}
+/* bottom dock: companion cat, what it says, add button. Content never sits under it. */
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-radius:22px 22px 0 0;box-shadow:0 -6px 24px rgba(122,61,80,.08);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px calc(12px + env(safe-area-inset-bottom,0px))}
+.dock-in{max-width:448px;margin:0 auto;display:flex;align-items:center;gap:12px}
+.cat{position:relative;flex:none;width:52px;height:52px;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab}
+.cat .ear{position:absolute;top:-6px;width:20px;height:20px;background:var(--ear,var(--c-pink));border-radius:4px 15px 3px 15px;z-index:0}
+.cat .ear.l{left:3px;transform:rotate(-12deg)}
+.cat .ear.r{right:3px;transform:scaleX(-1) rotate(-12deg)}
+.cat .face{position:relative;z-index:1;width:100%;height:100%;border-radius:50%;overflow:hidden;border:3px solid var(--ear,var(--c-pink));background:var(--surface)}
 .cat .face img,.cat .face svg{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
-.cat .blush{position:absolute;z-index:2;bottom:22px;width:14px;height:8px;border-radius:50%;background:#f39bb0;opacity:0;transition:opacity .3s;filter:blur(1px)}
-.cat .blush.l{left:12px}.cat .blush.r{right:12px}
+.cat .blush{position:absolute;z-index:2;bottom:13px;width:10px;height:6px;border-radius:50%;background:#f39bb0;opacity:0;transition:opacity .3s;filter:blur(1px)}
+.cat .blush.l{left:7px}.cat .blush.r{right:7px}
 .cat.blushing .blush{opacity:.75}
-.cat .zz{position:absolute;z-index:3;right:-6px;top:-14px;font-family:var(--font-display);color:var(--ink-2);font-size:16px;opacity:0}
+.cat .zz{position:absolute;z-index:3;right:-4px;top:-12px;font-family:var(--font-display);color:var(--ink-2);font-size:13px;opacity:0}
 .cat.sleep .zz{animation:zz 2.4s infinite}
 .cat.sleep .face{filter:saturate(.7) brightness(.92)}
 @keyframes zz{0%{opacity:0;transform:translate(0,6px)}40%{opacity:1}100%{opacity:0;transform:translate(10px,-14px)}}
@@ -165,10 +174,11 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
 .cat.happy .ear.l{transform:rotate(-24deg) translateY(-3px)}
 .cat.happy .ear.r{transform:scaleX(-1) rotate(-24deg) translateY(-3px)}
 
-.bubble{pointer-events:auto;max-width:min(230px,calc(100vw - 200px));background:var(--surface);color:var(--ink);border-radius:18px 18px 18px 6px;padding:10px 14px;font-family:var(--font-display);font-size:15px;line-height:1.45;box-shadow:var(--shadow);margin-bottom:46px;transform-origin:0 100%;transition:opacity .25s,transform .25s}
-.bubble[data-hide="1"]{opacity:0;transform:scale(.8);pointer-events:none}
-.treat{pointer-events:auto;position:absolute;left:68px;bottom:-4px;width:34px;height:34px;border-radius:50%;background:var(--c-butter);display:grid;place-items:center;box-shadow:var(--shadow);z-index:7}
-.treat svg{width:20px;height:20px}
+.bubble{flex:1;min-width:0;align-self:center;background:var(--surface-2);color:var(--ink);border-radius:14px;padding:8px 12px;font-family:var(--font-display);font-size:13.5px;line-height:1.4;text-align:left;
+  display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;cursor:pointer;transition:color .25s}
+.bubble[data-hide="1"]{color:var(--ink-2)}
+.treat{position:absolute;right:-9px;bottom:-7px;width:26px;height:26px;border-radius:50%;background:var(--c-butter);display:grid;place-items:center;box-shadow:0 2px 6px rgba(122,61,80,.18);z-index:7}
+.treat svg{width:16px;height:16px}
 .fx{position:fixed;inset:0;pointer-events:none;z-index:50;overflow:hidden}
 .fx span{position:absolute;width:20px;height:20px;animation:floatUp 1.4s ease-out forwards}
 @keyframes floatUp{0%{opacity:0;transform:translate(0,0) scale(.4)}15%{opacity:1}100%{opacity:0;transform:translate(var(--dx),-140px) scale(1.1) rotate(var(--rot))}}
@@ -244,18 +254,19 @@ textarea.inp{min-height:64px;resize:vertical}
     <div class="list" id="list"></div>
   </section>
 
-  <div class="cat-zone">
-    <div class="cat idle" id="cat" role="button" tabindex="0" aria-label="值班貓咪：點一下、摸摸牠，或長按換下一隻">
-      <span class="ear l"></span><span class="ear r"></span>
-      <div class="face" id="catFace"></div>
-      <span class="blush l"></span><span class="blush r"></span>
-      <span class="zz">z z</span>
-      <button class="treat" id="treatBtn" aria-label="餵小魚乾"><svg viewBox="0 0 24 24" fill="#e39a5f"><path d="M3 12c3-4.5 8-6 12.5-3.2L20 6v12l-4.5-2.8C11 18 6 16.5 3 12z"/><circle cx="7.3" cy="11.3" r="1.1" fill="#fff"/></svg></button>
+  <nav class="dock" aria-label="值班貓咪與新增">
+    <div class="dock-in">
+      <div class="cat idle" id="cat" role="button" tabindex="0" aria-label="值班貓咪：點一下、摸摸牠，或長按換下一隻">
+        <span class="ear l"></span><span class="ear r"></span>
+        <div class="face" id="catFace"></div>
+        <span class="blush l"></span><span class="blush r"></span>
+        <span class="zz">z z</span>
+        <button class="treat" id="treatBtn" aria-label="餵小魚乾"><svg viewBox="0 0 24 24" fill="#e39a5f"><path d="M3 12c3-4.5 8-6 12.5-3.2L20 6v12l-4.5-2.8C11 18 6 16.5 3 12z"/><circle cx="7.3" cy="11.3" r="1.1" fill="#fff"/></svg></button>
+      </div>
+      <button type="button" class="bubble" id="bubble" data-hide="1" aria-live="polite"></button>
+      <button class="fab" id="fab" aria-label="新增行程"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
     </div>
-    <div class="bubble" id="bubble" data-hide="1" aria-live="polite"></div>
-  </div>
-
-  <button class="fab" id="fab" aria-label="新增行程"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+  </nav>
 </div>
 
 <div class="scrim" id="scrim" hidden></div>
@@ -396,7 +407,8 @@ function render(dir){
   const start = new Date(y, m, 1 - v.getDay());
   const today = ymd(new Date());
   const grid = $("grid"); grid.innerHTML = "";
-  for (let i = 0; i < 42; i++) {
+  const cells = Math.ceil((v.getDay() + new Date(y, m + 1, 0).getDate()) / 7) * 7;
+  for (let i = 0; i < cells; i++) {
     const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
     const k = ymd(d), evs = eventsOn(k);
     const b = document.createElement("button");
@@ -413,6 +425,8 @@ function render(dir){
     if (evs.length > shown) { const mo = document.createElement("span"); mo.className = "more"; mo.textContent = `+${evs.length - shown}`; chips.appendChild(mo); }
     b.append(n, chips); grid.appendChild(b);
   }
+  const now = new Date();
+  $("todayBtn").hidden = S.sel === today && y === now.getFullYear() && m === now.getMonth();
   if (dir) { grid.classList.remove("slide-l","slide-r"); void grid.offsetWidth; grid.classList.add(dir > 0 ? "slide-l" : "slide-r"); }
   renderAgenda();
 }
@@ -422,8 +436,9 @@ function renderAgenda(){
   $("agSub").textContent = `星期${WD[d.getDay()]}` + (evs.length ? ` · ${evs.length} 件事` : "");
   const list = $("list"); list.innerHTML = "";
   if (!evs.length) {
-    const p = document.createElement("div"); p.className = "empty";
-    p.textContent = S.events.size ? "這天沒有安排，可以跟貓咪一起放空。" : "還沒有任何行程。按右下角的 ＋ 新增第一個吧！";
+    const p = document.createElement("button"); p.type = "button"; p.className = "empty";
+    p.innerHTML = S.events.size ? "這天還沒有安排。<b>點這裡新增行程</b>" : "還沒有任何行程。<b>點這裡新增第一個吧！</b>";
+    p.onclick = () => openEvent(null);
     list.appendChild(p);
   }
   for (const e of evs) {
@@ -570,6 +585,7 @@ function bump(k, id = curCat().id){
 }
 function renderCat(){
   const c = curCat(), face = $("catFace"), src = `cats/${c.img || c.id + "-v2"}.jpg`;
+  if (bubble.dataset.hide === "1") restBubble();
   cat.style.setProperty("--ear", `var(--c-${c.ear})`);
   cat.setAttribute("aria-label", `${c.name}：點一下、摸摸牠，或長按換下一隻`);
   const img = face.querySelector("img");
@@ -592,9 +608,10 @@ function say(text, anim, happy){
   bubble.textContent = text; bubble.dataset.hide = "0";
   animate(anim);
   if (happy) { cat.classList.add("happy","blushing"); setTimeout(() => cat.classList.remove("happy","blushing"), 1800); }
-  clearTimeout(bubbleTimer); bubbleTimer = setTimeout(() => bubble.dataset.hide = "1", Math.max(2600, text.length * 160));
+  clearTimeout(bubbleTimer); bubbleTimer = setTimeout(restBubble, Math.max(3200, text.length * 180));
 }
-bubble.onclick = () => bubble.dataset.hide = "1";
+function restBubble(){ clearTimeout(bubbleTimer); bubble.dataset.hide = "1"; bubble.textContent = isSleepy() ? `${catName()}睡著了…（點牠會醒來）` : `今天值班：${catName()}・點牠、摸牠或餵小魚乾`; }
+bubble.onclick = () => { if (bubble.dataset.hide === "1") tapCat(); else restBubble(); };
 
 function burst(x, y, kind, n){
   const fx = $("fx");
@@ -845,7 +862,7 @@ $("paradeBtn").onclick = () => { closeSheets(); setTimeout(parade, 350); };
 
 /* tap empty space: a cat toy appears and the nearest cat pounces */
 $("app").addEventListener("click", e => {
-  if (e.target.closest("button,.ev,.cat,.sitter,.bubble,input,.cal,.empty,.note")) return;
+  if (e.target.closest("button,.ev,.cat,.sitter,.bubble,input,.cal,.empty,.note,.dock")) return;
   const w = document.createElementNS(SVGNS, "svg"); w.setAttribute("viewBox", "0 0 24 24"); w.setAttribute("class", "wand");
   w.innerHTML = '<path d="M3 21L13 11" stroke="#b9a2c9" stroke-width="1.6" stroke-linecap="round"/><path d="M13 11c2-5 6-8 9-8-1 3-3 7-8 9z" fill="#f2a7b8"/><path d="M14.5 9.5c2.5-2 4.5-4 6-5.5" stroke="#fff" stroke-width=".8" fill="none"/>';
   w.style.left = e.clientX + "px"; w.style.top = e.clientY + "px";
