@@ -453,8 +453,9 @@ function restBridge(clientId){
   const API = "https://www.googleapis.com/calendar/v3/calendars/primary/events";
   const TZ = (Intl.DateTimeFormat().resolvedOptions().timeZone) || "Asia/Taipei";
   let token = null, exp = 0, client = null, waiting = null;
-  try { const t = JSON.parse(sessionStorage.getItem("mc_gtok") || "null"); if (t && t.exp > Date.now() + 60000) { token = t.token; exp = t.exp; } } catch {}
-  const drop = () => { token = null; exp = 0; try { sessionStorage.removeItem("mc_gtok"); } catch {} };
+  try { const t = JSON.parse(localStorage.getItem("mc_gtok") || "null"); if (t && t.exp > Date.now() + 60000) { token = t.token; exp = t.exp; } } catch {}
+  let hint = ""; try { hint = localStorage.getItem("mc_ghint") || ""; } catch {}
+  const drop = () => { token = null; exp = 0; try { localStorage.removeItem("mc_gtok"); } catch {} };
   function ensureClient(){
     if (client) return client;
     if (!(window.google && google.accounts && google.accounts.oauth2)) return null;
@@ -464,7 +465,7 @@ function restBridge(clientId){
         const w = waiting; waiting = null; if (!w) return;
         if (r && r.access_token) {
           token = r.access_token; exp = Date.now() + (Number(r.expires_in) || 3600) * 1000;
-          try { sessionStorage.setItem("mc_gtok", JSON.stringify({ token, exp })); } catch {}
+          try { localStorage.setItem("mc_gtok", JSON.stringify({ token, exp })); } catch {}
           w.resolve(token);
         } else w.reject({ code: "signin_failed", message: (r && r.error) || "" });
       },
@@ -478,7 +479,7 @@ function restBridge(clientId){
     if (ua && !ua.isActive) return Promise.reject({ code: "signin_required" });   // a sign-in window may only open right after a tap
     const c = ensureClient();
     if (!c) return Promise.reject({ code: "server_unavailable", retryable: true, message: "Google 登入元件還沒載入" });
-    return new Promise((resolve, reject) => { waiting = { resolve, reject }; c.requestAccessToken(); });
+    return new Promise((resolve, reject) => { waiting = { resolve, reject }; c.requestAccessToken(hint ? { prompt: "", hint } : {}); });
   }
   async function api(method, url, body){
     const t = await getToken();
@@ -504,7 +505,10 @@ function restBridge(clientId){
         const q = new URLSearchParams({ singleEvents: "true", orderBy: "startTime", maxResults: String(i.pageSize || 250),
           timeMin: new Date(i.startTime).toISOString(), timeMax: new Date(i.endTime).toISOString() });
         if (i.pageToken) q.set("pageToken", i.pageToken);
-        return api("GET", API + "?" + q).then(j => ({ payload: { events: j.items || [], nextPageToken: j.nextPageToken } }));
+        return api("GET", API + "?" + q).then(j => {
+          if (j.summary && /@/.test(j.summary) && j.summary !== hint) { hint = j.summary; try { localStorage.setItem("mc_ghint", hint); } catch {} }
+          return { payload: { events: j.items || [], nextPageToken: j.nextPageToken } };
+        });
       }
       if (tool === "create_event") return api("POST", API, { summary: i.summary, description: i.description || "", colorId: i.colorId, ...times(i), reminders: { useDefault: true } }).then(j => ({ payload: j }));
       if (tool === "update_event") return api("PATCH", API + "/" + encodeURIComponent(i.eventId), { summary: i.summary, description: i.description || "", colorId: i.colorId, ...times(i, true) }).then(j => ({ payload: j }));
@@ -852,7 +856,7 @@ function normG(g){
 function gError(err){
   const code = err && err.code;
   switch (code) {
-    case "signin_required": return { text: "先連接你的 Google 帳號，工作分頁就會顯示 Google 日曆的行程。", action: "連接 Google 日曆" };
+    case "signin_required": return { text: "Google 登入過期了。點一下畫面任何地方就會自動重新連上（第一次使用請選你的帳號）。", action: "連接 Google 日曆" };
     case "signin_failed": return { text: "Google 登入沒有完成，可能是登入視窗被關掉了。", action: "再試一次" };
     case "needs_reauth": return { text: "Google 日曆的連線過期了。請到 claude.ai 的「設定 → 連接器」重新連接 Google Calendar，再回來重新整理。" };
     case "server_not_connected": case "server_not_found": return { text: "還沒連接 Google 日曆。請到 claude.ai 的「設定 → 連接器」加入 Google Calendar，再回來重新整理。" };
@@ -863,6 +867,15 @@ function gError(err){
     case "tool_error": return { text: "Google 日曆回覆了錯誤：" + String((err && err.message) || "").slice(0, 120), action: "重新讀取" };
     default: return { text: "暫時連不上 Google 日曆，請稍後再試。", action: "重新讀取" };
   }
+}
+let tapArmed = false;
+function armTapReconnect(){
+  if (tapArmed) return; tapArmed = true;
+  document.addEventListener("click", ev => {
+    tapArmed = false;
+    if (ev.target.closest && ev.target.closest(".status")) return;   // the "connect" button does it itself
+    if (S.tab === "work" && S.workState === "error" && S.workCode === "signin_required") { S.workKey = ""; loadWork(); }
+  }, { once: true, capture: true });
 }
 let workSeq = 0;
 async function loadWork(){
@@ -895,7 +908,8 @@ async function loadWork(){
     S.work = out; S.workState = "ready";
   } catch (err) {
     if (seq !== workSeq) return;
-    S.workState = "error"; S.workErr = gError(err);
+    S.workState = "error"; S.workErr = gError(err); S.workCode = err && err.code;
+    if (S.workCode === "signin_required") armTapReconnect();
     if (["needs_reauth", "server_not_connected", "server_not_found", "not_in_manifest", "approval_required", "consent_required", "blocked_by_policy"].includes(err && err.code)) S.work = new Map();
   }
   if (S.tab === "work") render();
