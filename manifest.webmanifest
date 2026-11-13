@@ -1,0 +1,13 @@
+{
+  "name": "Chloe行事曆",
+  "short_name": "Chloe行事曆",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#f8f5f8",
+  "theme_color": "#f8f5f8",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
+  ]
+}

@@ -4,14 +4,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f8f5f8">
+<link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
 <body>
-<title>喵喵行事曆</title>
+<title>Chloe行事曆</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Chloe行事曆">
+<meta name="application-name" content="Chloe行事曆">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Huninn&family=Noto+Sans+TC:wght@400;500;700&display=swap">
 <style>
@@ -853,7 +856,29 @@ $("app").addEventListener("click", e => {
   hop(best); miniSay(best, rand(["那是什麼！", "（盯）", "逗貓棒！我的！", "撲過去了喔"]));
 });
 
+/* ---------- tab icon: a different cat every day ---------- */
+let faviconDay = null;
+function setDailyFavicon(){
+  const t = new Date(), day = Math.floor(new Date(t.getFullYear(), t.getMonth(), t.getDate()).getTime() / 86400000);
+  if (day === faviconDay) return; faviconDay = day;
+  const c = CATS[((day % CATS.length) + CATS.length) % CATS.length];
+  const im = new Image();
+  im.onload = () => {
+    try {
+      const cv = document.createElement("canvas"); cv.width = cv.height = 64;
+      const x = cv.getContext("2d");
+      x.beginPath(); x.arc(32, 32, 32, 0, Math.PI * 2); x.clip(); x.drawImage(im, 0, 0, 64, 64);
+      document.querySelectorAll('link[rel~="icon"]').forEach(l => l.remove());
+      const link = document.createElement("link"); link.rel = "icon"; link.type = "image/png"; link.href = cv.toDataURL("image/png");
+      document.head.appendChild(link);
+    } catch {}
+  };
+  im.src = `cats/${c.img || c.id + "-v2"}.jpg`;
+}
+document.addEventListener("visibilitychange", () => { if (!document.hidden) setDailyFavicon(); });
+
 /* ---------- boot ---------- */
+setDailyFavicon();
 render(); renderCat();
 if (isSleepy()) cat.classList.add("sleep");
 setTimeout(greet, 700);
