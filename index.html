@@ -3,7 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#f8f5f8">
+<meta name="color-scheme" content="light">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#d996a9">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" href="icon-192.png">
@@ -15,6 +18,8 @@
 <title>Chloe行事曆</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="color-scheme" content="light">
 <meta name="apple-mobile-web-app-title" content="Chloe行事曆">
 <meta name="application-name" content="Chloe行事曆">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -34,7 +39,8 @@
   --line:#ebe4ec;
   --shadow:0 6px 24px rgba(122,61,80,.10);
   --c-pink:#f4c4cf; --c-peach:#f8d5b8; --c-butter:#f6e6a8; --c-mint:#bfe3cf; --c-sky:#bcd8ef; --c-lav:#d6c8ef;
-  --chip-ink:#3f3745;    /* dark text on pastel chips, both themes */
+  --chip-ink:#3f3745;
+  --sysbar:#d996a9;      /* status-bar band: readable under black or white system text */    /* dark text on pastel chips, both themes */
   --font-display:"Huninn","Zen Maru Gothic","PingFang TC","Noto Sans TC",system-ui,sans-serif;
   --font-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
   --r:18px;
@@ -46,6 +52,11 @@
 *,*::before,*::after{box-sizing:border-box}
 html,body{min-height:100%}
 body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;overflow-x:hidden;-webkit-tap-highlight-color:transparent}
+/* The phone's clock and battery sit in these bands (top, and the side rail of a folded phone).
+   A mid-tone pink keeps them readable whether the system draws them in black or white. */
+body::before,body::after{content:"";position:fixed;z-index:25;background:var(--sysbar);pointer-events:none}
+body::before{inset:0 0 auto 0;height:env(safe-area-inset-top,0px)}
+body::after{top:0;bottom:0;right:0;width:env(safe-area-inset-right,0px)}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
